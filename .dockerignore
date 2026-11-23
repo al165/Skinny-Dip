@@ -1,0 +1,13 @@
+# the API image: code only; the database, wiki and images are mounted (compose.yaml)
+.git
+*.log
+data*/
+experiments/
+skinny-dip/
+__pycache__/
+*.pyc
+.env
+*.env
+!example.env
+Dockerfile
+.dockerignore

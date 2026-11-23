@@ -1,0 +1,10 @@
+# The API container (dipa/api.py). The ingest needs more (requirements of dip-memory + scikit-learn,
+# pymupdf...); it runs on the dev machine, not here.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+httpx>=0.27
+python-dotenv>=1.0
+numpy>=1.26
+pydantic>=2.7
+pyyaml>=6.0
+rapidfuzz>=3.0

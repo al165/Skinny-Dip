@@ -1,0 +1,15 @@
+# Environment
+*.env
+
+# Databases
+data*/
+*.sqlite
+*.db
+
+# Artifacts
+__pycache__/
+*.pyc
+
+# Editors/filesystem
+.vscode/
+.DS_Store

@@ -1,0 +1,38 @@
+# dip-args demo: the API (dipa/api.py) and the canvas UI (skinny-dip, nginx), reachable at
+# http://127.0.0.1:3001 (put your reverse proxy in front of it). The wiki editor is at
+# /api/ui/editor.html. Settings: copy example.env to deploy.env and pass --env-file deploy.env.
+#
+#   docker compose --env-file deploy.env up -d --build
+#
+# To build here and run on a small server without building there: ./ship.sh user@host (see its header).
+#
+# Before deploying a build without models (DIP_OFFLINE=1, the default), warm its caches once:
+#   DIP_DATA_DIR=data-full python -m dipa.warm
+name: dip-args
+
+services:
+  api:
+    build: .
+    image: dip-args-api:latest       # fixed names: ship.sh loads these on the server, which then runs --no-build
+    restart: unless-stopped
+    environment:
+      DIP_OFFLINE: ${DIP_OFFLINE:-1}            # 1 = no models: everything from the warmed caches
+      OLLAMA_URL: ${OLLAMA_URL:-http://arran-desktop:11434}   # only used with DIP_OFFLINE=0
+      DIP_EMBED_URL: ${DIP_EMBED_URL:-http://arran-desktop:11500}
+      DIP_EDIT_TOKEN: ${DIP_EDIT_TOKEN:-}       # set it: anyone with the link could edit the wiki otherwise
+      DIP_LLM_MODEL: ${DIP_LLM_MODEL}
+    volumes:
+      # read-write: wiki edits save pages and update the database. Deploy a copy of the build
+      # (DIPA_DATA), not the one you ingest into.
+      - ${DIPA_DATA:-./data-full}:/dipa/data
+      - ${DIPA_IMAGES:-../../00_Data/SD-Corpus-v1-small/ingest/images}:/dipa/images:ro
+
+  site:
+    build:
+      context: ./skinny-dip
+    image: dip-args-site:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - 127.0.0.1:${DIPA_PORT:-3001}:8080       # 3000 is dip-memory's demo

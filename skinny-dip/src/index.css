@@ -1,0 +1,943 @@
+@font-face {
+    font-family: 'Epilogue';
+    src: url('/fonts/Epilogue/Epilogue-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Epilogue';
+    src: url('/fonts/Epilogue/Epilogue-Italic-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Azeret Mono';
+    src: url('/fonts/AzeretMono/AzeretMono-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Azeret Mono';
+    src: url('/fonts/AzeretMono/AzeretMono-Italic-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: italic;
+    font-display: swap;
+}
+
+
+:root {
+    --text: #4b4654;
+    --text-h: #08060d;
+    --muted: #8a8492;
+    --bg: #F0EBEB;
+    --surface: #fff;
+    --surface-2: #f6f5f2;
+    --border: #4d4034;
+    --arrow: #444444;
+    --seed: #3A5E48;
+    --seed-text: #fff;
+    --notice: #9a3412;
+    --shadow: rgba(0, 0, 0, 0.3) 0 10px 15px -3px, rgba(0, 0, 0, 0.15) 0 4px 6px -2px;
+    --shadow-light: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+    --sans: 'Epilogue', system-ui, 'Segoe UI', Roboto, sans-serif;
+    --mono: 'Azeret Mono', ui-monospace, Consolas, monospace;
+
+    font: 15px/1.45 var(--sans);
+    color-scheme: light dark;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text: #c4c7cf;
+        --text-h: #f3f4f6;
+        --muted: #8b909a;
+        --bg: #16171d;
+        --surface: #1f2028;
+        --surface-2: #262833;
+        --border: #34363f;
+        --notice: #fdba74;
+        --shadow: rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    }
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+}
+
+#root {
+    width: 100vw;
+    height: 100vh;
+}
+
+button {
+    font: inherit;
+    cursor: pointer;
+}
+
+a,
+a:visited {
+    color: inherit;
+}
+
+/* ── Side panel ─────────────────────────────────────────── */
+
+#side-panel {
+    width: 340px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.main-title {
+    font-family: var(--mono);
+    font-size: larger;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    width: fit-content;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    margin: 10px 0;
+    user-select: none;
+    transition-property: background color border-radius;
+    transition-duration: 100ms;
+}
+
+.main-title:hover {
+    cursor: pointer;
+    background: var(--text);
+    color: var(--bg);
+    border-radius: 100px;
+}
+
+.panel-head {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.tabs button {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+}
+
+.tabs button.active {
+    background: var(--seed);
+    border-color: var(--seed);
+    color: var(--seed-text);
+}
+
+.panel-head input {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-h);
+    font: inherit;
+}
+
+.count {
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.count .error {
+    color: var(--notice);
+}
+
+.seed-list {
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.seed {
+    padding: 8px 10px;
+    background: var(--seed);
+    color: var(--seed-text);
+    border-radius: 8px;
+    cursor: grab;
+    text-align: left;
+}
+
+.seed:active {
+    cursor: grabbing;
+}
+
+.seed-title {
+    font-size: 11px;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.seed-text {
+    font-size: 13px;
+    display: -webkit-box;
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.seed-image img {
+    display: block;
+    width: 100%;
+    max-height: 160px;
+    object-fit: cover;
+    margin-bottom: 6px;
+    background: var(--surface-2);
+}
+
+.seed-image .seed-title {
+    font-size: 13px;
+    opacity: 1;
+    white-space: normal;
+}
+
+.seed-credit {
+    font-size: 11px;
+    opacity: 0.75;
+}
+
+/* ── Results panel ──────────────────────────────────────── */
+
+#results-panel {
+    width: 340px;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--c);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.results-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.results-title .relation {
+    font-family: var(--mono);
+    text-transform: uppercase;
+    color: var(--c);
+    font-weight: 600;
+}
+
+.results-title .close {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+.results-title .close:hover {
+    color: var(--text-h);
+}
+
+.results-source {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.result-list {
+    overflow-y: auto;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.result {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    text-align: left;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--c);
+}
+
+.result:hover {
+    background: var(--surface);
+    box-shadow: var(--shadow-light);
+}
+
+.result.linked {
+    opacity: 0.5;
+}
+
+.result-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.result-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-h);
+    margin: 2px 0;
+}
+
+.result-text {
+    font-size: 12px;
+    display: -webkit-box;
+    line-clamp: 4;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.result-why,
+.result-doc {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.result-doc {
+    font-style: italic;
+}
+
+/* ── Passage node ───────────────────────────────────────── */
+
+.passage-node {
+    width: 280px;
+    /* keep in sync with NODE_WIDTH in relations.ts */
+    box-sizing: border-box;
+    padding: 10px 12px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    /* border-left: 4px solid var(--seed); */
+    /* border-radius: 10px; */
+    /* box-shadow: var(--shadow); */
+    text-align: left;
+    font-size: 13px;
+}
+
+.passage-node.selected {
+    /* outline: 2px solid var(--seed); */
+    outline-offset: 2px;
+    box-shadow: var(--shadow);
+}
+
+.passage-node.seed {
+    border-radius: 24px;
+    border: none;
+    background: var(--seed) !important;
+    color: var(--seed-text) !important;
+    padding: 20px;
+}
+
+.passage-node.seed .title,
+.passage-node.seed header {
+    display: none;
+}
+
+.passage-node header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.passage-node .kind {
+    padding: 3px 0;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+.passage-node .remove {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    position: absolute;
+    top: 10px;
+    right: 12px;
+}
+
+.passage-node .remove:hover {
+    color: var(--text-h);
+}
+
+.passage-node .title {
+    font-weight: 600;
+    color: var(--text-h);
+    margin: 2px 0 4px;
+}
+
+.passage-node .text {
+    margin: 0;
+    /* display: -webkit-box; */
+    /* line-clamp: 6; */
+    /* -webkit-line-clamp: 6; */
+    /* -webkit-box-orient: vertical; */
+    /* overflow: hidden; */
+    white-space: pre-line;
+}
+
+.passage-node.selected .text {
+    display: block;
+    /* max-height: 260px; */
+    overflow-y: auto;
+    cursor: auto;
+    user-select: text;
+}
+
+.passage-node .source {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    border: var(--muted) 1px solid;
+    padding: 4px;
+    border-radius: 100px;
+}
+
+.passage-node a.source:hover {
+    cursor: pointer;
+    color: var(--surface);
+    background: var(--muted);
+}
+
+.passage-node .notice {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--notice);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 400px;
+    gap: 4px;
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.actions button {
+    padding: 8px 16px;
+    font-size: 18px;
+    border-radius: 10px;
+    border: 1px solid var(--c);
+    color: #fff;
+    background: var(--c);
+    box-shadow: var(--shadow-light);
+}
+
+.actions button:hover:not(:disabled) {
+    background: var(--c);
+    color: #fff;
+}
+
+.actions button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.actions button.pending {
+    opacity: 1;
+    background: var(--c);
+    color: #fff;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.actions input {
+    padding: 6px 8px;
+    width: 80%;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-h);
+    font: inherit;
+    font-size: 18px;
+    box-shadow: var(--shadow-light);
+}
+
+
+@keyframes pulse {
+    50% {
+        opacity: 0.55;
+    }
+}
+
+/* Handles exist for edge routing only. */
+.passage-node .react-flow__handle {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Image node ─────────────────────────────────────────── */
+
+/* The <img> is the whole node: it fills the size NodeResizer gives the node. */
+.image-node {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    user-select: none;
+}
+
+.image-node.selected {
+    box-shadow: var(--shadow);
+}
+
+.react-flow__node-image .react-flow__handle,
+.react-flow__node-note .react-flow__handle {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ── Edges, misc ────────────────────────────────────────── */
+
+.edge-label {
+    position: absolute;
+    padding: 1px 8px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    pointer-events: all;
+    cursor: help;
+}
+
+.hint {
+    padding: 8px 14px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+}
+
+#canvas-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.note,
+.clear {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-light);
+}
+
+/* ── Note node ──────────────────────────────────────────── */
+
+.note-node {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    /* the padding is the drag area */
+    border-radius: 6px;
+    text-decoration: underline;
+    text-decoration-style: wavy;
+}
+
+.note-node .selected textarea {
+    box-shadow: var(--shadow);
+}
+
+.note-node textarea {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #1f1d24;
+    /* notes are light in both themes */
+    font: 14px/1.4 var(--sans);
+    text-decoration: underline;
+    text-decoration-style: wavy;
+}
+
+.note-node textarea::placeholder {
+    color: rgba(0, 0, 0, 0.2);
+}
+
+.note-toolbar {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    box-shadow: var(--shadow-light);
+}
+
+.note-toolbar .swatch {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.note-toolbar .swatch.active {
+    outline: 2px solid var(--text-h);
+    outline-offset: 1px;
+}
+
+.note-toolbar .remove {
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+/* ── dip-args: arguments, holders, provenance, verbatim passages ─────────── */
+
+/* Who holds the view: always visible, so a summary is never read as unattributed. */
+.holder-chip {
+    display: inline-block;
+    margin: 2px 0 4px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+    color: var(--text-h);
+}
+
+.holder-chip.holder-author {
+    background: color-mix(in srgb, #424dfd 18%, transparent);
+}
+
+.holder-chip.holder-person {
+    background: color-mix(in srgb, #c2185b 18%, transparent);
+}
+
+.holder-chip.holder-org,
+.holder-chip.holder-work {
+    background: color-mix(in srgb, #2a8c8c 20%, transparent);
+}
+
+.holder-chip.holder-industry,
+.holder-chip.holder-government {
+    background: color-mix(in srgb, #ff8800 22%, transparent);
+}
+
+.holder-chip.holder-unspecified {
+    background: none;
+    border: 1px dashed var(--muted);
+    color: var(--muted);
+}
+
+/* Summary vs source text: say which one the reader is looking at. */
+.passage-node .provenance {
+    margin-top: 6px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.passage-node .reception {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.passage-node .voice-rejected {
+    color: #c0392b;
+}
+
+.passage-node .voice-endorsed {
+    color: #2e7d32;
+}
+
+.passage-node .quote {
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.passage-node .quote summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.passage-node .quote blockquote {
+    margin: 6px 0 0;
+    padding-left: 8px;
+    border-left: 2px solid var(--border);
+    font-family: Georgia, "Times New Roman", serif;
+    user-select: text;
+}
+
+.passage-node .quote cite {
+    display: block;
+    margin-top: 2px;
+    font-family: inherit;
+    font-size: 10px;
+    color: var(--muted);
+}
+
+/* Passages: verbatim source text, styled apart from LLM summaries. */
+.passage-node.verbatim {
+    border-style: dashed;
+    background: color-mix(in srgb, var(--surface) 92%, #c8b88a);
+}
+
+.passage-node.verbatim .text,
+.result-text.verbatim {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.passage-node.verbatim mark {
+    background: color-mix(in srgb, #ffd54f 70%, transparent);
+    color: inherit;
+}
+
+.seed-holder {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+}
+
+.main-title .wiki-link {
+    margin-left: 10px;
+    font-size: 12px;
+    font-weight: normal;
+    color: var(--muted);
+}
+
+/* Images move: thumbnails and credit in the results panel (always show the credit). */
+.result .result-thumb {
+    display: block;
+    width: 100%;
+    max-height: 140px;
+    object-fit: cover;
+    border-radius: 6px;
+    margin: 4px 0;
+}
+
+.result .result-credit {
+    font-size: 10px;
+    color: var(--muted);
+}
+
+/* ── Ask: questions to the LLM about a card, a selection in it, or the corpus ─────────── */
+
+.ask-panel {
+    width: 380px;
+    max-height: 80vh;
+}
+
+.ask-selection {
+    margin: 0;
+    padding: 4px 8px;
+    border-left: 3px solid var(--seed);
+    font-size: 12px;
+    max-height: 90px;
+    overflow-y: auto;
+}
+
+.ask-input {
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text-h);
+    font: inherit;
+    resize: vertical;
+}
+
+.ask-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.ask-send {
+    padding: 4px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--seed);
+    background: var(--seed);
+    color: var(--seed-text);
+}
+
+.ask-send:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.ask-answer {
+    padding: 8px 10px;
+    border: 1px solid var(--seed);
+    background: var(--surface);
+    font-size: 13px;
+}
+
+.ask-answer p {
+    margin: 4px 0;
+    color: var(--text-h);
+}
+
+.ask-answer .notice {
+    font-size: 11px;
+    color: var(--notice);
+}
+
+.ask-answer-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.ask-answer-foot button {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text);
+}
+
+/* a citation chip in the answer: adds that source to the canvas */
+.cite {
+    display: inline-block;
+    margin: 0 1px;
+    padding: 0 5px;
+    border: 1px solid var(--c);
+    border-radius: 100px;
+    background: none;
+    color: var(--c);
+    font: 10px/1.6 var(--mono);
+    vertical-align: 1px;
+}
+
+.cite:hover {
+    background: var(--c);
+    color: #fff;
+}
+
+.result.uncited {
+    opacity: 0.6;
+    border-left-color: var(--border);
+}
+
+.ask-selection-button {
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--c);
+    background: var(--c);
+    color: #fff;
+    box-shadow: var(--shadow-light);
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* an answer node: an LLM answer, linked from the card or corpus question it answers */
+.passage-node.kind-answer {
+    border: 1px solid var(--c);
+    border-top-width: 4px;
+}
+
+.passage-node.kind-answer .ask-selection {
+    margin: 4px 0 6px;
+}
+
+.passage-node .cited-source {
+    display: block;
+    width: 100%;
+    margin: 2px 0;
+    padding: 2px 0;
+    border: none;
+    background: none;
+    color: var(--text);
+    font-size: 11px;
+    text-align: left;
+}
+
+.passage-node .cited-source:hover {
+    color: var(--c);
+}
+
+/* a corpus question node: a seed with its own remove button (seed headers are hidden) */
+.passage-node.kind-question {
+    position: relative;
+    font-weight: 600;
+}
+
+.passage-node.kind-question .remove {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: var(--seed-text);
+}
+
+/* the corpus question box at the top of the seeds panel */
+
+.main-title .toggle {
+    display: inline-block;
+    width: 1em;
+}

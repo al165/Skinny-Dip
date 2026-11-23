@@ -1,119 +1,23 @@
-import {
-    applyEdgeChanges, applyNodeChanges, MarkerType,
-    type Edge, type Node, type OnEdgesChange, type OnNodesChange, type XYPosition,
-} from "@xyflow/react";
+// The canvas state (zustand): nodes and edges, the seeds list, cached move results, and the
+// results and Ask panels. Node and edge constructors are in build.ts.
+import { applyEdgeChanges, applyNodeChanges, type OnEdgesChange, type OnNodesChange, type XYPosition } from "@xyflow/react";
 import { create } from "zustand";
 
-import { apiUrl, askQuestion, fetchNodes, runAction, type ActionResult, type Holder, type Item, type Kind, type Provenance, type QuestionResponse, type QuestionSource, type Relation, type SeedKind, type Source, runImagePassages } from "../api";
+import {
+    apiUrl, askQuestion, fetchNodes,
+    type ActionResult, type Item, type QuestionResponse, type QuestionSource, type SeedKind,
+} from "../api";
+import { flowId, imageFlowId, randomRotation, resultFlowId, seedTextId, seedTitleId, selectOnly, sizeOf } from "../lib/canvas";
 import { NODE_WIDTH, RELATION_STYLE } from "../relations";
-import { flowId, IMAGE_Z, imageFlowId, randomRotation, resultFlowId, seedTextId, seedTitleId, selectOnly } from "../utils";
-
-export const NOTE_COLOURS = ["#4D4034", "#B56936", "#614956", "#254369", "#508C65", "#716994"];
-const NOTE_SIZE = { width: 200, height: 70 };
-const IMAGE_WIDTH = { width: 200 };
-
-export type { Item } from "../api";
-
-export type PassageData = {
-    dipId: string,
-    kind: Kind,
-    title: string,
-    text: string,
-    rotation: number,
-    isSeed?: boolean,
-    /** The title half of a seed (`seedTitleId`): shows only the title, and can expand its description. */
-    isSeedTitle?: boolean,
-    /** The description half of a seed (`seedTextId`): shows `text` without the title. */
-    isSeedText?: boolean,
-    role?: string | null,
-    abstraction?: number | null,
-    document?: string | null,
-    /** URL of the original document. */
-    sourceUrl?: string | null,
-    section?: string | null,
-    provenance?: Provenance,
-    model?: string | null,
-    holder?: Holder | null,
-    reception?: { document: string, voice: string, url?: string | null }[],
-    sources?: Source[],
-    highlight?: Item["highlight"],
-    /** Relation currently being fetched for this node, if any. */
-    pending?: Relation | null,
-    /** Last problem when expanding (empty results, offline fallback, server error). */
-    notice?: string | null,
-};
-export type PassageNode = Node<PassageData, "passage">;
-
-// export type TitleData = {
-//     dipId: string,
-//     kind: Kind,
-//     title: string,
-//     text: string,
-//     rotation: number
-// };
-//
-// export type TitleNode = Node<TitleData, "title">;
-//
-export type NoteData = {
-    colour: string,
-    text: string,
-};
-export type NoteNode = Node<NoteData, "note">;
-
-/** A question asked about the whole corpus: the root its answer stems from. */
-export type QuestionData = {
-    question: string,
-    rotation: number,
-};
-export type QuestionNode = Node<QuestionData, "question">;
-
-/** An LLM answer, linked from the card (or question node) it answers; its citations add sources linked from it. */
-export type AnswerData = {
-    /** `${sourceId}|${selection}|${question}`: asking the same thing again selects this node. */
-    key: string,
-    question: string,
-    selection: string | null,
-    answer: string,
-    found: boolean,
-    sources: QuestionSource[],
-    model: string,
-    rotation: number,
-};
-export type AnswerNode = Node<AnswerData, "answer">;
-
-export type ImageData = {
-    imageId: string,
-    slug: string,
-    title: string,
-    description: string,
-    /** Absolute URL of the picture. */
-    url: string,
-    credit: string | null,
-    license: string | null,
-    /** Where the image comes from. */
-    sourceUrl: string | null,
-    rotation: number,
-    /** Relation currently being fetched for this node, if any. */
-    pending?: Relation | null,
-};
-export type ImageNode = Node<ImageData, "image">;
-
-export type NodeType = PassageNode | NoteNode | ImageNode | QuestionNode | AnswerNode;
-
-// Type guards. `n.type === "passage"` narrows under TS 7 (tsc -b) but not under TS 6 (vtsls in the editor),
-// because xyflow's Node is an intersection with a conditional type. Guards narrow on both.
-export const isPassage = (n: NodeType): n is PassageNode => n.type === "passage";
-export const isNote = (n: NodeType): n is NoteNode => n.type === "note";
-export const isImage = (n: NodeType): n is ImageNode => n.type === "image";
-export const isQuestion = (n: NodeType): n is QuestionNode => n.type === "question";
-export const isAnswer = (n: NodeType): n is AnswerNode => n.type === "answer";
-
-
-export type RelationEdgeData = { relation: Relation, why: string, score: number };
-export type RelationEdge = Edge<RelationEdgeData, "relation">;
+import {
+    isAnswer, isImage, isNote, isPassage,
+    type AnswerNode, type NodeType, type NoteData, type PassageData, type QuestionNode, type Relation, type RelationEdge,
+} from "../types";
+import { fetchAction, imageNode, makeEdge, noteNode, passageNode, toPassageData } from "./build";
 
 type Status = "idle" | "loading" | "ready" | "error";
 
+/** The results panel: the results of one move run on one node. */
 export type Picker = {
     sourceId: string,
     relation: Relation,
@@ -148,20 +52,22 @@ type Store = {
     seedsError: string | null,
     loadSeeds: (kind?: SeedKind) => Promise<void>,
 
-    /** Action results per `${dipId}:${relation}`, cached so reopening the same action doesn't refetch. */
+    /** Move results per `${dipId}:${relation}` (images: `${flowId}:${relation}`), cached so reopening the same
+     *  move doesn't refetch. */
     results: Record<string, ActionResult[]>,
-    /** The action whose results are shown in the results panel, or null when it's closed. */
+    /** The move whose results are shown in the results panel, or null when it's closed. */
     picker: Picker | null,
     /** Flow ids added per `${sourceFlowId}:${relation}`: what "added" means in the results panel and how
      *  siblings are placed. Kept apart from edges because links to image nodes are not drawn. */
     chosen: Record<string, string[]>,
 
-    addSeed: (item: Item, position: XYPosition, asTitle: boolean) => void,
+    /** Drop a seed on the canvas at `position`: an image, or a DIP node as a title card (default) or full card. */
+    addSeed: (item: Item, position: XYPosition, asTitle?: boolean) => void,
     /** Show (or, if it's already there, remove) the description card of a seed title node. */
     toggleSeedText: (titleId: string) => void,
     addNote: (position: XYPosition) => void,
     updateNote: (flowId: string, data: Partial<NoteData>) => void,
-    /** Run an action on a node and open the results panel; nothing is added until `choose`. */
+    /** Run a move on a node and open the results panel; nothing is added until `choose`. */
     expand: (flowId: string, relation: Relation) => Promise<void>,
     /** Add the chosen result to the canvas, linked to the picker's source node, and close the panel. */
     choose: (result: ActionResult) => void,
@@ -182,66 +88,16 @@ type Store = {
     /** Add a source an answer drew on to the canvas, linked from that answer node by a Cites edge. */
     addCited: (answerId: string, result: QuestionSource) => void,
     closeAsk: () => void,
+
     removeNode: (flowId: string) => void,
     clear: () => void,
 };
 
-
-function toData(r: Item | ActionResult): PassageData {
-    return {
-        dipId: r.id,
-        kind: r.kind as Kind,
-        title: r.title,
-        text: r.text,
-        role: r.role ?? null,
-        abstraction: r.abstraction ?? null,
-        document: r.document ?? null,
-        section: null,
-        sourceUrl: r.source_url ?? null,
-        provenance: r.provenance,
-        model: r.model ?? null,
-        holder: r.holder ?? null,
-        reception: r.reception ?? [],
-        sources: r.sources ?? [],
-        highlight: r.highlight,
-        rotation: randomRotation(),
-    };
-}
-
-/** Run `relation` on a canvas node: image moves need an image, the others a DIP node. */
-function fetchAction(source: PassageNode | ImageNode, relation: Relation) {
-    if (relation === "image-passages") {
-        if (!isImage(source)) throw new Error("Passages only applies to images");
-        return runImagePassages(source.data.slug);
-    }
-    if (relation === "answer" || relation === "cites" || relation === "description") throw new Error(`${relation} is not a move`);
-    if (!isPassage(source)) throw new Error(`${relation} does not apply to images`);
-    return runAction(relation, source.data.dipId);
-}
-
-function makeEdge(source: string, target: string, relation: Relation, r: { why: string, score: number }): RelationEdge {
-    const style = RELATION_STYLE[relation];
-
-    return {
-        id: `${source}-${relation}-${target}`,
-        source, target,
-        sourceHandle: style.sourceHandle,
-        targetHandle: style.targetHandle,
-        type: "relation",
-        data: { relation, why: r.why, score: r.score },
-        markerEnd: style.markerProps === null ? undefined
-            : { type: MarkerType.Arrow, color: 'var(--arrow)', height: 20, width: 20, ...style.markerProps },
-        style: {
-            stroke: style.stroke ?? 'var(--arrow)',
-            strokeWidth: style.strokeWidth ?? 2,
-            ...(style.strokeDasharray && { strokeDasharray: style.strokeDasharray, strokeLinecap: 'round' as const }),
-        },
-    };
-}
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export const useGraph = create<Store>((set, get) => {
     // Narrow on `type` before touching `data`: inside each branch TS knows which data shape it has,
-    // so the spread stays a valid PassageNode / NoteNode instead of a mix of both.
+    // so the spread stays a valid node of that type instead of a mix.
     const patchPassage = (id: string, data: Partial<PassageData>) =>
         set({ nodes: get().nodes.map((n): NodeType => n.id === id && isPassage(n) ? { ...n, data: { ...n.data, ...data } } : n) });
     const patchNote = (id: string, data: Partial<NoteData>) =>
@@ -254,49 +110,44 @@ export const useGraph = create<Store>((set, get) => {
                         : isImage(n) ? { ...n, data: { ...n.data, pending } } : n),
         });
 
-    /** Add `result` to the canvas linked to `sourceId` by `relation` (or, with no source, at `at`),
-     *  converging on the node if it's already there. Shared by the results panel and the Ask panel. */
-    const link = (sourceId: string | null, relation: Relation, result: ActionResult, at: XYPosition | null) => {
+    /** Add `node` to the canvas, or, if a node with its id is already there, just select that one. */
+    const addOrSelect = (node: NodeType) => {
+        const { nodes } = get();
+        set({ nodes: nodes.some(n => n.id === node.id) ? selectOnly(nodes, node.id) : [...selectOnly(nodes), node] });
+    };
+
+    /** Add `result` to the canvas linked from `sourceId` by `relation`, converging on the node if it's already
+     *  there. Shared by the results panel and the answer nodes' citations. */
+    const link = (sourceId: string, relation: Relation, result: ActionResult) => {
         const { nodes, edges, chosen } = get();
-        const parent = sourceId ? nodes.find(n => n.id === sourceId) : undefined;
-        if (!parent && !at) return;
+        const parent = nodes.find(n => n.id === sourceId);
+        if (!parent) return;
 
         const isPic = result.type === "image";
         const targetId = resultFlowId(result);
-        const chosenKey = `${sourceId ?? "corpus"}:${relation}`;
-        const linked = new Set(chosen[chosenKey] ?? []);
-        if (linked.has(targetId)) {
-            // Already chosen: just select it.
+        const chosenKey = `${sourceId}:${relation}`;
+        const linked = chosen[chosenKey] ?? [];
+        if (linked.includes(targetId)) {
             set({ nodes: selectOnly(nodes, targetId) });
             return;
         }
 
-        // No edges to or from image nodes: pictures sit next to what they illustrate, unlinked.
-        const drawEdge = !!parent && !isPic && !isImage(parent);
         let newNodes: NodeType[];
         if (nodes.some(n => n.id === targetId)) {
             // Converge: link to the node that's already on the canvas and select it.
             newNodes = selectOnly(nodes, targetId);
         } else {
-            const position = parent
-                ? RELATION_STYLE[relation].place(parent.position,
-                    { w: parent.measured?.width ?? NODE_WIDTH, h: parent.measured?.height ?? 200 }, linked.size)
-                : { x: at!.x + (linked.size % 3) * (NODE_WIDTH + 40), y: at!.y + Math.floor(linked.size / 3) * 260 };
-            const node: NodeType = isPic
-                ? {
-                    id: targetId, type: "image", position, selected: false, width: IMAGE_WIDTH.width, zIndex: IMAGE_Z,
-                    data: {
-                        imageId: result.slug ?? result.id, slug: result.slug ?? result.id, title: result.title,
-                        description: result.text, url: apiUrl(result.url ?? ""), credit: result.credit ?? null,
-                        license: result.license ?? null, sourceUrl: result.source_url ?? null, rotation: randomRotation(),
-                    },
-                }
-                : { id: targetId, type: "passage", position, data: toData(result), selected: false };
+            const position = RELATION_STYLE[relation].place(parent.position, sizeOf(parent), linked.length);
+            const node = isPic
+                ? imageNode(targetId, position, result, apiUrl(result.url ?? ""))
+                : passageNode(targetId, position, toPassageData(result));
             newNodes = [...selectOnly(nodes), node];
         }
+        // No edges to or from image nodes: pictures sit next to what they illustrate, unlinked.
+        const drawEdge = !isPic && !isImage(parent);
         set({
             nodes: newNodes,
-            edges: drawEdge ? [...edges, makeEdge(parent!.id, targetId, relation, result)] : edges,
+            edges: drawEdge ? [...edges, makeEdge(parent.id, targetId, relation, result)] : edges,
             chosen: { ...chosen, [chosenKey]: [...linked, targetId] },
         });
     };
@@ -322,23 +173,22 @@ export const useGraph = create<Store>((set, get) => {
                 sources: r.sources, model: r.meta.model, rotation: randomRotation(),
             },
         };
-        const newNodes: NodeType[] = selectOnly(nodes);
+        const newNodes = selectOnly(nodes);
+        const why = { why: r.question, score: 1 };
         let edge: RelationEdge;
         if (card) {
             const n = nodes.filter(m => isAnswer(m) && edges.some(e => e.source === card.id && e.target === m.id)).length;
-            answer.position = RELATION_STYLE.answer.place(card.position,
-                { w: card.measured?.width ?? NODE_WIDTH, h: card.measured?.height ?? 200 }, n);
-            edge = makeEdge(card.id, answerId, "answer", { why: r.question, score: 1 });
+            answer.position = RELATION_STYLE.answer.place(card.position, sizeOf(card), n);
+            edge = makeEdge(card.id, answerId, "answer", why);
         } else {
-            const questionId = `question-${crypto.randomUUID()}`;
-            const q: QuestionNode = {
-                id: questionId, type: "question", selected: false,
+            const question: QuestionNode = {
+                id: `question-${crypto.randomUUID()}`, type: "question", selected: false,
                 position: { x: at.x - NODE_WIDTH / 2, y: at.y - 60 },
                 data: { question: r.question, rotation: randomRotation() },
             };
-            newNodes.push(q);
-            answer.position = { x: q.position.x, y: q.position.y + 120 + 120 };
-            edge = { ...makeEdge(questionId, answerId, "answer", { why: r.question, score: 1 }), sourceHandle: "s-bottom", targetHandle: "t-top" };
+            newNodes.push(question);
+            answer.position = { x: question.position.x, y: question.position.y + 240 };
+            edge = { ...makeEdge(question.id, answerId, "answer", why), sourceHandle: "s-bottom", targetHandle: "t-top" };
         }
         set({ nodes: [...newNodes, answer], edges: [...edges, edge] });
         return answerId;
@@ -358,11 +208,10 @@ export const useGraph = create<Store>((set, get) => {
             if (get().seedsStatus === "loading") return;
             set({ seedKind: kind, seedsStatus: "loading", seedsError: null });
             try {
-                const seeds = await fetchNodes(kind);
-                set({ seeds, seedsStatus: "ready" });
+                set({ seeds: await fetchNodes(kind), seedsStatus: "ready" });
             } catch (e) {
                 console.error(e);
-                set({ seedsStatus: "error", seedsError: String(e instanceof Error ? e.message : e) });
+                set({ seedsStatus: "error", seedsError: errorText(e) });
             }
         },
 
@@ -372,43 +221,15 @@ export const useGraph = create<Store>((set, get) => {
 
         addSeed: (item, position, asTitle = true) => {
             if (item.role === "image") {
-                // keyed by slug, like image results from the Images move, so both paths reach one node
-                const id = imageFlowId(item.slug ?? item.id);
-                const { nodes } = get();
-                if (nodes.some(n => n.id === id)) {
-                    set({ nodes: selectOnly(nodes, id) });
-                    return;
-                }
-                const node: ImageNode = {
-                    id, type: "image", position: { x: position.x - NODE_WIDTH / 2, y: position.y - 100 }, zIndex: IMAGE_Z,
-                    data: {
-                        imageId: item.slug ?? item.id, slug: item.slug ?? "", title: item.title, description: item.text,
-                        url: item.url ?? "", credit: item.credit ?? null, license: item.license ?? null,
-                        sourceUrl: item.source_url, rotation: randomRotation(),
-                    },
-                    selected: false,
-                    width: IMAGE_WIDTH.width,
-                };
-                set({ nodes: [...selectOnly(nodes), node] });
+                // Keyed by slug, like image results from the Images move, so both paths reach one node.
+                // The library already gives an absolute URL.
+                const at = { x: position.x - NODE_WIDTH / 2, y: position.y - 100 };
+                addOrSelect(imageNode(imageFlowId(item.slug ?? item.id), at, item, item.url ?? ""));
                 return;
             }
-
             const id = asTitle ? seedTitleId(item.id) : flowId(item.id);
-
-            const { nodes } = get();
-            if (nodes.some(n => n.id === id)) {
-                // Already on the canvas: just select it.
-                set({ nodes: selectOnly(nodes, id) });
-                return;
-            }
-            const data = toData(item);
-            data.isSeed = true;
-            data.isSeedTitle = asTitle;
-            const node: PassageNode = {
-                id, type: "passage", position: { x: position.x - NODE_WIDTH / 2, y: position.y - 40 },
-                data, selected: false
-            };
-            set({ nodes: [...selectOnly(nodes), node] });
+            const data: PassageData = { ...toPassageData(item), isSeed: true, isSeedTitle: asTitle };
+            addOrSelect(passageNode(id, { x: position.x - NODE_WIDTH / 2, y: position.y - 40 }, data));
         },
 
         toggleSeedText: (titleId) => {
@@ -420,29 +241,17 @@ export const useGraph = create<Store>((set, get) => {
                 get().removeNode(textId);
                 return;
             }
-            const text: PassageNode = {
-                id: textId, type: "passage", selected: false,
-                position: RELATION_STYLE.description.place(title.position,
-                    { w: title.measured?.width ?? NODE_WIDTH, h: title.measured?.height ?? 80 }, 0),
-                // Same DIP node as the title (dipId, holder, sources…), so moves and Ask behave the same on both.
-                data: { ...title.data, isSeedTitle: false, isSeedText: true, pending: null, notice: null, rotation: randomRotation() },
-            };
+            const position = RELATION_STYLE.description.place(title.position, sizeOf(title, 80), 0);
+            // Same DIP node as the title (dipId, holder, sources…), so moves and Ask behave the same on both.
+            const text = passageNode(textId, position,
+                { ...title.data, isSeedTitle: false, isSeedText: true, pending: null, notice: null, rotation: randomRotation() });
             set({
                 nodes: [...selectOnly(nodes), text],
                 edges: [...edges, makeEdge(titleId, textId, "description", { why: "description", score: 1 })],
             });
         },
 
-        addNote: (position) => {
-            const node: NoteNode = {
-                id: `note-${crypto.randomUUID()}`, type: "note",
-                position: { x: position.x - NOTE_SIZE.width / 2, y: position.y - NOTE_SIZE.height / 2 },
-                // width/height make it resizable (NodeResizer updates them through onNodesChange).
-                ...NOTE_SIZE,
-                data: { colour: NOTE_COLOURS[0], text: "" }, selected: true,
-            };
-            set({ nodes: [...selectOnly(get().nodes), node] });
-        },
+        addNote: (position) => set({ nodes: [...selectOnly(get().nodes), noteNode(position)] }),
 
         updateNote: patchNote,
 
@@ -450,12 +259,13 @@ export const useGraph = create<Store>((set, get) => {
             const source = get().nodes.find(n => n.id === sourceId);
             if (!source || !(isPassage(source) || isImage(source)) || source.data.pending)
                 return;
-            set({ ask: null });  // one panel at a time
 
             // Results are a property of the DIP node, so passages key the cache by dipId: a seed's title and
             // description cards (two flow ids, one DIP node) share it. Images key it by flow id (one per slug).
             const key = `${isPassage(source) ? source.data.dipId : sourceId}:${relation}`;
-            set({ picker: { sourceId, relation, key, status: "ready", notice: null } });
+            // One panel at a time.
+            set({ ask: null, picker: { sourceId, relation, key, status: "ready", notice: null } });
+
             const cached = get().results[key];
             if (cached) {
                 if (cached.length === 1) get().choose(cached[0]);  // one result: add it, no panel
@@ -463,10 +273,11 @@ export const useGraph = create<Store>((set, get) => {
             }
 
             // Only update the picker if it still shows this request (the user may have opened another meanwhile).
-            const patchPicker = (p: Partial<Picker>) => {
+            const stillShown = () => {
                 const cur = get().picker;
-                if (cur?.key === key && cur.sourceId === sourceId) set({ picker: { ...cur, ...p } });
+                return cur?.key === key && cur.sourceId === sourceId;
             };
+            const patchPicker = (p: Partial<Picker>) => { if (stillShown()) set({ picker: { ...get().picker!, ...p } }); };
 
             patchPicker({ status: "loading" });
             setPending(sourceId, relation);
@@ -476,8 +287,7 @@ export const useGraph = create<Store>((set, get) => {
                 const selfId = isPassage(source) ? source.data.dipId : null;
                 const results = res.results.filter(r => (r.type === "node" || r.type === "image") && r.id !== selfId);
                 set({ results: { ...get().results, [key]: results } });
-                const cur = get().picker;
-                if (results.length === 1 && cur?.key === key && cur.sourceId === sourceId) {
+                if (results.length === 1 && stillShown()) {
                     get().choose(results[0]);  // one result: add it straight away, no panel
                     return;
                 }
@@ -488,7 +298,7 @@ export const useGraph = create<Store>((set, get) => {
                         : `No ${relation} results for this ${isPassage(source) ? source.data.kind : "image"}.`,
                 });
             } catch (e) {
-                patchPicker({ status: "error", notice: `${relation} failed: ${e instanceof Error ? e.message : e}` });
+                patchPicker({ status: "error", notice: `${relation} failed: ${errorText(e)}` });
             } finally {
                 setPending(sourceId, null);
             }
@@ -497,7 +307,7 @@ export const useGraph = create<Store>((set, get) => {
         choose: (result) => {
             const picker = get().picker;
             if (!picker) return;
-            link(picker.sourceId, picker.relation, result, null);
+            link(picker.sourceId, picker.relation, result);
             set({ picker: null });
         },
 
@@ -529,33 +339,38 @@ export const useGraph = create<Store>((set, get) => {
             if (!ask || ask.status === "loading" || !question) return;
             const source = ask.sourceId ? get().nodes.find(n => n.id === ask.sourceId) : undefined;
             const nodeId = source && isPassage(source) ? source.data.dipId : null;
-            const same = (a: Ask | null) => a?.sourceId === ask.sourceId && a?.selection === ask.selection;
+            // Only update the panel if it still shows this question's card and selection.
+            const patchAsk = (p: Partial<Ask>) => {
+                const cur = get().ask;
+                if (cur?.sourceId === ask.sourceId && cur.selection === ask.selection) set({ ask: { ...cur, ...p } });
+            };
             set({ ask: { ...ask, status: "loading", error: null }, sideOpen: false });
             try {
                 const response = await askQuestion(question, nodeId, ask.selection);
                 const answerId = placeAnswer(ask.sourceId, ask.selection, response, at);
-                if (same(get().ask)) set({ ask: { ...get().ask!, status: "ready", response, answerId } });
+                patchAsk({ status: "ready", response, answerId });
             } catch (e) {
-                if (same(get().ask))
-                    set({ ask: { ...get().ask!, status: "error", error: e instanceof Error ? e.message : String(e) } });
+                patchAsk({ status: "error", error: errorText(e) });
             }
         },
 
         addCited: (answerId, result) =>
-            link(answerId, "cites", { ...result, why: `${result.why} · cited as [${result.label}]` }, null),
+            link(answerId, "cites", { ...result, why: `${result.why} · cited as [${result.label}]` }),
 
         closeAsk: () => set({ ask: null }),
 
-        removeNode: (id) => set({
-            nodes: get().nodes.filter(n => n.id !== id),
-            edges: get().edges.filter(e => e.source !== id && e.target !== id),
-            chosen: Object.fromEntries(Object.entries(get().chosen)
-                .filter(([k]) => !k.startsWith(`${id}:`))
-                .map(([k, v]) => [k, v.filter(t => t !== id)])),
-            picker: get().picker?.sourceId === id ? null : get().picker,
-            ask: get().ask?.sourceId === id ? null
-                : get().ask?.answerId === id ? { ...get().ask!, answerId: null } : get().ask,
-        }),
+        removeNode: (id) => {
+            const { nodes, edges, chosen, picker, ask } = get();
+            set({
+                nodes: nodes.filter(n => n.id !== id),
+                edges: edges.filter(e => e.source !== id && e.target !== id),
+                chosen: Object.fromEntries(Object.entries(chosen)
+                    .filter(([k]) => !k.startsWith(`${id}:`))
+                    .map(([k, v]) => [k, v.filter(t => t !== id)])),
+                picker: picker?.sourceId === id ? null : picker,
+                ask: ask?.sourceId === id ? null : ask?.answerId === id ? { ...ask, answerId: null } : ask,
+            });
+        },
 
         clear: () => set({ nodes: [], edges: [], chosen: {}, picker: null, ask: null }),
     };

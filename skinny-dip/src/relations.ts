@@ -1,14 +1,19 @@
+// How each relation looks and where its results go: edge colour, label, handles, line style, and the
+// placement of a new node relative to the card it came from.
 import type { EdgeMarker, XYPosition } from "@xyflow/react";
-import type { Relation } from "./api";
+import type { CSSProperties } from "react";
+
+import type { Relation } from "./types";
 
 type RelationStyle = {
-    /** Text of the edge's label; null/absent = no label. */
+    /** Text of the edge's label (and the move's button); null/absent = no label. */
     label?: string | null,
     colour: string,
     hint: string,
-    /** Which side of the parent the new node goes, and which handles the edge uses. */
+    /** Which handles the edge uses (see `Handles` in nodes/parts.tsx). */
     sourceHandle: string,
     targetHandle: string,
+    /** Where the n-th node added from `parent` by this relation goes. */
     place: (parent: XYPosition, size: { w: number, h: number }, n: number) => XYPosition,
     stroke?: string,
     strokeWidth?: number,
@@ -19,7 +24,9 @@ type RelationStyle = {
     markerProps?: Partial<EdgeMarker> | null,
 };
 
-const W = 280;      // node width (keep in sync with .passage-node in index.css)
+/** Card width (keep in sync with .passage-node in index.css). */
+export const NODE_WIDTH = 280;
+const W = NODE_WIDTH;
 const GAP = 120;
 
 // 0, +1, -1, +2, -2, … so siblings fan out around the parent's axis.
@@ -99,4 +106,5 @@ export const RELATION_STYLE: Record<Relation, RelationStyle> = {
     },
 };
 
-export const NODE_WIDTH = W;
+/** A relation's colour as the `--c` custom property the buttons, panels and answer nodes are styled with. */
+export const accent = (colour: string) => ({ "--c": colour }) as CSSProperties;

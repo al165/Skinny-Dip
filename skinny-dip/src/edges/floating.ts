@@ -1,3 +1,4 @@
+// Floating edges: where an edge meets each card, accounting for the card's tilt (data.rotation).
 import { Position, type Node, type InternalNode } from '@xyflow/react';
 
 type Point = { x: number, y: number };

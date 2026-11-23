@@ -1,24 +1,25 @@
+import { Controls, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, type DragEvent } from "react";
 
-import {
-    ReactFlow, ReactFlowProvider, Controls, MiniMap, Panel, useReactFlow,
-} from "@xyflow/react";
-import '@xyflow/react/dist/style.css'
-
-import { PassageNode } from "./PassageNode";
-import { RelationEdge } from "./RelationEdge";
-import FloatingConectionLine from './FloatingConnectionLine';
-import { DRAG_TYPE, SeedPanel } from "./SeedsPanel";
-import { useGraph, type Item } from "./store/graphs";
-import { NoteNode } from "./NoteNode";
-import { ImageNode } from "./ImageNode";
-import { ResultsPanel } from "./ResultsPanel";
-import { AskPanel } from "./AskPanel";
-import { AnswerNode, QuestionNode } from "./AnswerNode";
+import type { Item } from "./api";
+import { FloatingConnectionLine } from "./edges/FloatingConnectionLine";
+import { RelationEdge } from "./edges/RelationEdge";
+import { AnswerNode } from "./nodes/AnswerNode";
+import { ImageNode } from "./nodes/ImageNode";
+import { NoteNode } from "./nodes/NoteNode";
+import { PassageNode } from "./nodes/PassageNode";
+import { QuestionNode } from "./nodes/QuestionNode";
+import { AskPanel } from "./panels/AskPanel";
+import { ResultsPanel } from "./panels/ResultsPanel";
+import { SEED_DRAG_TYPE, SeedsPanel } from "./panels/SeedsPanel";
+import { useGraph } from "./store/graphs";
 
 const nodeTypes = { passage: PassageNode, note: NoteNode, image: ImageNode, question: QuestionNode, answer: AnswerNode };
-const NOTE_DRAG_TYPE = "application/x-dip-note";
 const edgeTypes = { relation: RelationEdge };
+
+/** Notes get their own drag type so the drop handler can tell them apart from seeds. */
+const NOTE_DRAG_TYPE = "application/x-dip-note";
 
 function Canvas() {
     const loadSeeds = useGraph(s => s.loadSeeds);
@@ -32,11 +33,8 @@ function Canvas() {
     const addNote = useGraph(s => s.addNote);
     const clear = useGraph(s => s.clear);
     const setSideOpen = useGraph(s => s.setSideOpen);
-
     const { screenToFlowPosition } = useReactFlow();
 
-
-    // Notes get their own drag type so onDrop can tell them apart from passages.
     const onDragNoteStart = (e: DragEvent) => {
         e.dataTransfer.setData(NOTE_DRAG_TYPE, "note");
         e.dataTransfer.effectAllowed = "move";
@@ -44,24 +42,22 @@ function Canvas() {
 
     const onDragOver = useCallback((e: DragEvent) => {
         const types = e.dataTransfer.types;
-        if (!types.includes(DRAG_TYPE) && !types.includes(NOTE_DRAG_TYPE)) return;
+        if (!types.includes(SEED_DRAG_TYPE) && !types.includes(NOTE_DRAG_TYPE)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
     }, []);
 
     const onDrop = useCallback((e: DragEvent) => {
         const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
         if (e.dataTransfer.types.includes(NOTE_DRAG_TYPE)) {
             e.preventDefault();
             addNote(position);
             return;
         }
-
-        const raw = e.dataTransfer.getData(DRAG_TYPE);
+        const raw = e.dataTransfer.getData(SEED_DRAG_TYPE);
         if (!raw) return;
         e.preventDefault();
-        addSeed(JSON.parse(raw) as Item, position, true);
+        addSeed(JSON.parse(raw) as Item, position);
         setSideOpen(false);
     }, [addSeed, addNote, setSideOpen, screenToFlowPosition]);
 
@@ -76,15 +72,14 @@ function Canvas() {
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodesConnectable={false}
-            connectionLineComponent={FloatingConectionLine}
+            connectionLineComponent={FloatingConnectionLine}
             colorMode="system"
             minZoom={0.5}
             maxZoom={5}
         >
-            {/* <Background /> */}
             <Controls />
             <MiniMap pannable zoomable />
-            <SeedPanel />
+            <SeedsPanel />
             <ResultsPanel />
             <AskPanel />
             <Panel id="canvas-buttons" position="top-right">
@@ -97,7 +92,7 @@ function Canvas() {
 
 export default function App() {
     return (
-        <div id="flow-container" style={{ height: '100%', width: '100%' }}>
+        <div id="flow-container" style={{ height: "100%", width: "100%" }}>
             <ReactFlowProvider>
                 <Canvas />
             </ReactFlowProvider>

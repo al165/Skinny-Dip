@@ -30,7 +30,6 @@
     font-display: swap;
 }
 
-
 :root {
     --text: #4b4654;
     --text-h: #08060d;
@@ -343,15 +342,11 @@ a:visited {
     background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
-    /* border-left: 4px solid var(--seed); */
-    /* border-radius: 10px; */
-    /* box-shadow: var(--shadow); */
     text-align: left;
     font-size: 13px;
 }
 
 .passage-node.selected {
-    /* outline: 2px solid var(--seed); */
     outline-offset: 2px;
     box-shadow: var(--shadow);
 }
@@ -416,7 +411,6 @@ a:visited {
 
 .passage-node.selected .text {
     display: block;
-    /* max-height: 260px; */
     overflow-y: auto;
     cursor: auto;
     user-select: text;
@@ -501,7 +495,6 @@ a:visited {
     font-size: 18px;
     box-shadow: var(--shadow-light);
 }
-
 
 @keyframes pulse {
     50% {
@@ -642,7 +635,7 @@ a:visited {
     padding: 0 4px;
 }
 
-/* ── dip-args: arguments, holders, provenance, verbatim passages ─────────── */
+/* ── Arguments, holders, provenance, verbatim passages ──── */
 
 /* Who holds the view: always visible, so a summary is never read as unattributed. */
 .holder-chip {
@@ -749,20 +742,6 @@ a:visited {
 .passage-node.verbatim mark {
     background: color-mix(in srgb, #ffd54f 70%, transparent);
     color: inherit;
-}
-
-.seed-holder {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-}
-
-.main-title .wiki-link {
-    margin-left: 10px;
-    font-size: 12px;
-    font-weight: normal;
-    color: var(--muted);
 }
 
 /* Images move: thumbnails and credit in the results panel (always show the credit). */
@@ -934,11 +913,4 @@ a:visited {
     top: 8px;
     right: 12px;
     color: var(--seed-text);
-}
-
-/* the corpus question box at the top of the seeds panel */
-
-.main-title .toggle {
-    display: inline-block;
-    width: 1em;
 }

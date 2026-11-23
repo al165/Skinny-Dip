@@ -1,4 +1,4 @@
-# dip-args
+# Project Skinny Dip
 
 The argument-level version of dip-memory. Instead of passages, users search and walk short,
 attributed summaries of the arguments in the corpus ("Emily M. Bender argues…", "the AI industry
@@ -7,18 +7,10 @@ CONTRADICTS, SUPPORTS, SHARED_WITH, EXAMPLE_OF and ELABORATES. Arguments sit in 
 (questions) and themes, which people curate in an editable wiki, and any argument, issue or theme
 can ask for an illustrative image. Everything runs on local models (Ollama + the embedding server).
 
-Proposal: the "dip-args: an argument-level corpus database" doc
-(<https://claude.ai/artifact/HeKPRjW7yLSiNyiTFQtt7k>). Its "As built" section lists where the
-build differs from the plan.
-
-**Status (2026-11-12): working prototype.** Stages 1–10, API, wiki editor and UI. The current
-build is `data-full/`: 14 documents of the SD corpus, 777 passages, 1,080 mentions, 239 holders,
-1,042 arguments, 39 issues, 6 themes, 14 images.
-
-## Quick start
+## Quick start (front end)
 
 ```bash
-# on the GPU machine (arran-desktop): Ollama with qwen3:14b, and the embedding server
+# on the GPU machine: Ollama with qwen3:4b, and the embedding server
 #   cd ../dip-memory/embed_server && CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=1 \
 #     uvicorn server:app --host 0.0.0.0 --port 11500
 
@@ -88,9 +80,9 @@ Settings live in `dipa/config.py`; every one can be overridden by an env var or 
 
 | Setting                               | Here                                       | Notes                                                                     |
 | ------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------- |
-| `OLLAMA_URL`                          | `http://arran-desktop:11434`               | the GPU machine over Tailscale (was 192.168.0.15 on the LAN)              |
+| `OLLAMA_URL`                          | `http://<hostname>:11434`                  | the GPU machine over Tailscale (was 192.168.0.15 on the LAN)              |
 | `DIP_LLM_MODEL`                       | `qwen3:14b`                                | all text tasks; `DIP_VLM_MODEL` (qwen2.5vl:3b) drafts image pages         |
-| `DIP_EMBED_BACKEND` / `DIP_EMBED_URL` | `remote` / `http://arran-desktop:11500`    | embeddinggemma-2 (text and pictures in one space)                         |
+| `DIP_EMBED_BACKEND` / `DIP_EMBED_URL` | `remote` / `http://<hostname>:11500`       | embeddinggemma-2 (text and pictures in one space)                         |
 | `DIP_LLM_PARALLEL`                    | `4`                                        | concurrent LLM requests; needs `OLLAMA_NUM_PARALLEL` ≥ this on the server |
 | `DIP_DATA_DIR`                        | per build                                  | database, wiki, reports, logs                                             |
 | `DIPA_IMAGE_DIR`                      | `00_Data/SD-Corpus-v1-small/ingest/images` | the image library                                                         |

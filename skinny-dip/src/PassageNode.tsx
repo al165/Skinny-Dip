@@ -4,12 +4,16 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { MOVES } from "./api";
 import { RELATION_STYLE } from "./relations";
 import { useGraph, type PassageNode as PassageNodeType } from "./store/graphs";
-import { SIDES, VOICE_LABEL, withHighlight } from "./utils";
+import { seedTextId, SIDES, VOICE_LABEL, withHighlight } from "./utils";
 
 export function PassageNode({ id, data, selected }: NodeProps<PassageNodeType>) {
     const expand = useGraph(s => s.expand);
     const removeNode = useGraph(s => s.removeNode);
     const openAsk = useGraph(s => s.openAsk);
+    const toggleSeedText = useGraph(s => s.toggleSeedText);
+    // Whether this seed title's description card is on the canvas (only looked up for title nodes).
+    const textShown = useGraph(s => !!data.isSeedTitle && s.nodes.some(n => n.id === seedTextId(data.dipId)));
+
     // Text selected in this card (only possible while it is selected): offers "Ask about this".
     const textRef = useRef<HTMLParagraphElement>(null);
     const [picked, setPicked] = useState("");
@@ -42,41 +46,49 @@ export function PassageNode({ id, data, selected }: NodeProps<PassageNodeType>) 
 
                     {selected && <button className="remove nodrag" title="Remove from canvas" onClick={() => removeNode(id)}>×</button>}
 
-                    <header>
-                        {data.holder && <div className={`holder-chip holder-${data.holder.type}`} title={data.holder.type}>{data.holder.name}</div>}
-                    </header>
+                    {data.isSeedTitle ?
 
-                    <div className="title">{data.title}</div>
-                    <p className={`text${selected ? " nowheel nodrag" : ""}`} ref={textRef}>{verbatim ? withHighlight(data.text, data.highlight) : data.text}</p>
+                        <h1>{data.title}</h1>
 
-                    {/* <div className="provenance">{provenanceLabel(data)}</div> */}
+                        :
 
-                    {data.reception && data.reception.length > 0 &&
-                        <div className="reception">
-                            {data.reception.map((r, i) => (
-                                <span key={i} className={`voice voice-${r.voice}`}>{VOICE_LABEL[r.voice] ?? r.voice}{" "}
-                                    {r.url ? <a className="nodrag" href={r.url} target="_blank" rel="noreferrer">“{r.document}”</a> : `“${r.document}”`}</span>
-                            ))}
-                        </div>}
+                        <>
+                            <header>
+                                {data.holder && <div className={`holder-chip holder-${data.holder.type}`} title={data.holder.type}>{data.holder.name}</div>}
+                            </header>
+                            {!data.isSeedText && <div className="title">{data.title}</div>}
+                            <p className={`text${selected ? " nowheel nodrag" : ""}`} ref={textRef}>{verbatim ? withHighlight(data.text, data.highlight) : data.text}</p>
+                            {/* <div className="provenance">{provenanceLabel(data)}</div> */}
 
-                    {firstQuote && selected &&
-                        <details className="quote nodrag nowheel">
-                            <summary>Quote{data.sources && data.sources.length > 1 ? `s (${data.sources.length})` : ""}</summary>
-                            {data.sources!.map((s, i) => (
-                                <blockquote key={i} title={s.quote_verified ? "found in the source" : "not found verbatim in the source"}>
-                                    “{s.quote}”{!s.quote_verified && " ⚠"}
-                                    <cite>{s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.document}</a> : s.document}</cite>
-                                </blockquote>
-                            ))}
-                        </details>}
+                            {data.reception && data.reception.length > 0 &&
+                                <div className="reception">
+                                    {data.reception.map((r, i) => (
+                                        <span key={i} className={`voice voice-${r.voice}`}>{VOICE_LABEL[r.voice] ?? r.voice}{" "}
+                                            {r.url ? <a className="nodrag" href={r.url} target="_blank" rel="noreferrer">“{r.document}”</a> : `“${r.document}”`}</span>
+                                    ))}
+                                </div>}
 
-                    {!data.sources?.length && (data.sourceUrl
-                        ? <a target="_blank" rel="noreferrer" href={data.sourceUrl} className="source nodrag" title={data.sourceUrl}>{data.document ?? data.title}</a>
-                        : data.document && !verbatim && <span className="source">{data.document}</span>)}
+                            {firstQuote && selected &&
+                                <details className="quote nodrag nowheel">
+                                    <summary>Quote{data.sources && data.sources.length > 1 ? `s (${data.sources.length})` : ""}</summary>
+                                    {data.sources!.map((s, i) => (
+                                        <blockquote key={i} title={s.quote_verified ? "found in the source" : "not found verbatim in the source"}>
+                                            “{s.quote}”{!s.quote_verified && " ⚠"}
+                                            <cite>{s.url ? <a href={s.url} target="_blank" rel="noreferrer">{s.document}</a> : s.document}</cite>
+                                        </blockquote>
+                                    ))}
+                                </details>}
 
-                    {data.notice && <div className="notice">{data.notice}</div>}
+                            {!data.sources?.length && (data.sourceUrl
+                                ? <a target="_blank" rel="noreferrer" href={data.sourceUrl} className="source nodrag" title={data.sourceUrl}>{data.document ?? data.title}</a>
+                                : data.document && !verbatim && <span className="source">{data.document}</span>)}
+
+                            {data.notice && <div className="notice">{data.notice}</div>}
+                        </>
+                    }
                 </div>
-                {selection.length > 2 &&
+
+                {(selection.length > 2 && !data.isSeedTitle) &&
                     <NodeToolbar position={Position.Top} align="center">
                         <button className="ask-selection-button nodrag" style={{ "--c": RELATION_STYLE.answer.colour } as CSSProperties}
                             onMouseDown={e => e.preventDefault() /* keep the text selected */}
@@ -85,6 +97,16 @@ export function PassageNode({ id, data, selected }: NodeProps<PassageNodeType>) 
                             Ask about “{selection.length > 40 ? selection.slice(0, 40) + "…" : selection}”
                         </button>
                     </NodeToolbar>}
+
+                {data.isSeedTitle &&
+                    <NodeToolbar position={Position.Right} align="center">
+                        <button className="nodrag toggle-description" title={textShown ? "Hide the description" : "Show the description"}
+                            onClick={() => toggleSeedText(id)}>
+                            {textShown ? "−" : "+"}
+                        </button>
+                    </NodeToolbar>
+                }
+
                 <NodeToolbar position={Position.Bottom} align="center">
                     <div className="actions nodrag">
                         {moves.map(r => {
@@ -111,7 +133,7 @@ export function PassageNode({ id, data, selected }: NodeProps<PassageNodeType>) 
                         </button>
                     </div>
                 </NodeToolbar>
-            </div>
+            </div >
         </>
     );
 }

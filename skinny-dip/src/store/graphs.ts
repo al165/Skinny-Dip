@@ -6,7 +6,7 @@ import { create } from "zustand";
 
 import { apiUrl, askQuestion, fetchNodes, runAction, type ActionResult, type Holder, type Item, type Kind, type Provenance, type QuestionResponse, type QuestionSource, type Relation, type SeedKind, type Source, runImagePassages } from "../api";
 import { NODE_WIDTH, RELATION_STYLE } from "../relations";
-import { flowId, IMAGE_Z, imageFlowId, randomRotation, resultFlowId, selectOnly } from "../utils";
+import { flowId, IMAGE_Z, imageFlowId, randomRotation, resultFlowId, seedTextId, seedTitleId, selectOnly } from "../utils";
 
 export const NOTE_COLOURS = ["#4D4034", "#B56936", "#614956", "#254369", "#508C65", "#716994"];
 const NOTE_SIZE = { width: 200, height: 70 };
@@ -21,6 +21,10 @@ export type PassageData = {
     text: string,
     rotation: number,
     isSeed?: boolean,
+    /** The title half of a seed (`seedTitleId`): shows only the title, and can expand its description. */
+    isSeedTitle?: boolean,
+    /** The description half of a seed (`seedTextId`): shows `text` without the title. */
+    isSeedText?: boolean,
     role?: string | null,
     abstraction?: number | null,
     document?: string | null,
@@ -40,6 +44,16 @@ export type PassageData = {
 };
 export type PassageNode = Node<PassageData, "passage">;
 
+// export type TitleData = {
+//     dipId: string,
+//     kind: Kind,
+//     title: string,
+//     text: string,
+//     rotation: number
+// };
+//
+// export type TitleNode = Node<TitleData, "title">;
+//
 export type NoteData = {
     colour: string,
     text: string,
@@ -142,7 +156,9 @@ type Store = {
      *  siblings are placed. Kept apart from edges because links to image nodes are not drawn. */
     chosen: Record<string, string[]>,
 
-    addSeed: (item: Item, position: XYPosition) => void,
+    addSeed: (item: Item, position: XYPosition, asTitle: boolean) => void,
+    /** Show (or, if it's already there, remove) the description card of a seed title node. */
+    toggleSeedText: (titleId: string) => void,
     addNote: (position: XYPosition) => void,
     updateNote: (flowId: string, data: Partial<NoteData>) => void,
     /** Run an action on a node and open the results panel; nothing is added until `choose`. */
@@ -198,13 +214,14 @@ function fetchAction(source: PassageNode | ImageNode, relation: Relation) {
         if (!isImage(source)) throw new Error("Passages only applies to images");
         return runImagePassages(source.data.slug);
     }
-    if (relation === "answer" || relation === "cites") throw new Error(`${relation} is not a move`);
+    if (relation === "answer" || relation === "cites" || relation === "description") throw new Error(`${relation} is not a move`);
     if (!isPassage(source)) throw new Error(`${relation} does not apply to images`);
     return runAction(relation, source.data.dipId);
 }
 
 function makeEdge(source: string, target: string, relation: Relation, r: { why: string, score: number }): RelationEdge {
     const style = RELATION_STYLE[relation];
+
     return {
         id: `${source}-${relation}-${target}`,
         source, target,
@@ -212,8 +229,13 @@ function makeEdge(source: string, target: string, relation: Relation, r: { why: 
         targetHandle: style.targetHandle,
         type: "relation",
         data: { relation, why: r.why, score: r.score },
-        markerEnd: { type: MarkerType.Arrow, color: 'var(--arrow)', height: 20, width: 20 },
-        style: { stroke: 'var(--arrow)', strokeWidth: 2 },
+        markerEnd: style.markerProps === null ? undefined
+            : { type: MarkerType.Arrow, color: 'var(--arrow)', height: 20, width: 20, ...style.markerProps },
+        style: {
+            stroke: style.stroke ?? 'var(--arrow)',
+            strokeWidth: style.strokeWidth ?? 2,
+            ...(style.strokeDasharray && { strokeDasharray: style.strokeDasharray, strokeLinecap: 'round' as const }),
+        },
     };
 }
 
@@ -348,9 +370,7 @@ export const useGraph = create<Store>((set, get) => {
         picker: null,
         chosen: {},
 
-        addSeed: (item, position) => {
-            console.log("Add Seed");
-            console.log(item);
+        addSeed: (item, position, asTitle = true) => {
             if (item.role === "image") {
                 // keyed by slug, like image results from the Images move, so both paths reach one node
                 const id = imageFlowId(item.slug ?? item.id);
@@ -373,7 +393,8 @@ export const useGraph = create<Store>((set, get) => {
                 return;
             }
 
-            const id = flowId(item.id);
+            const id = asTitle ? seedTitleId(item.id) : flowId(item.id);
+
             const { nodes } = get();
             if (nodes.some(n => n.id === id)) {
                 // Already on the canvas: just select it.
@@ -382,11 +403,34 @@ export const useGraph = create<Store>((set, get) => {
             }
             const data = toData(item);
             data.isSeed = true;
+            data.isSeedTitle = asTitle;
             const node: PassageNode = {
                 id, type: "passage", position: { x: position.x - NODE_WIDTH / 2, y: position.y - 40 },
                 data, selected: false
             };
             set({ nodes: [...selectOnly(nodes), node] });
+        },
+
+        toggleSeedText: (titleId) => {
+            const { nodes, edges } = get();
+            const title = nodes.find(n => n.id === titleId);
+            if (!title || !isPassage(title) || !title.data.isSeedTitle) return;
+            const textId = seedTextId(title.data.dipId);
+            if (nodes.some(n => n.id === textId)) {
+                get().removeNode(textId);
+                return;
+            }
+            const text: PassageNode = {
+                id: textId, type: "passage", selected: false,
+                position: RELATION_STYLE.description.place(title.position,
+                    { w: title.measured?.width ?? NODE_WIDTH, h: title.measured?.height ?? 80 }, 0),
+                // Same DIP node as the title (dipId, holder, sources…), so moves and Ask behave the same on both.
+                data: { ...title.data, isSeedTitle: false, isSeedText: true, pending: null, notice: null, rotation: randomRotation() },
+            };
+            set({
+                nodes: [...selectOnly(nodes), text],
+                edges: [...edges, makeEdge(titleId, textId, "description", { why: "description", score: 1 })],
+            });
         },
 
         addNote: (position) => {
@@ -408,8 +452,9 @@ export const useGraph = create<Store>((set, get) => {
                 return;
             set({ ask: null });  // one panel at a time
 
-            // Flow ids are stable per DIP node / image, so they key the cache.
-            const key = `${sourceId}:${relation}`;
+            // Results are a property of the DIP node, so passages key the cache by dipId: a seed's title and
+            // description cards (two flow ids, one DIP node) share it. Images key it by flow id (one per slug).
+            const key = `${isPassage(source) ? source.data.dipId : sourceId}:${relation}`;
             set({ picker: { sourceId, relation, key, status: "ready", notice: null } });
             const cached = get().results[key];
             if (cached) {

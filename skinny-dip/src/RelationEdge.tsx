@@ -28,7 +28,7 @@ export function RelationEdge(props: EdgeProps<RelationEdgeType>) {
     return (
         <>
             <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} />
-            {style && (
+            {style?.label && (
                 <EdgeLabelRenderer>
                     <div
                         className="edge-label nodrag nopan"

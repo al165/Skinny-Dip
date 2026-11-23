@@ -192,14 +192,6 @@ a:visited {
     cursor: grabbing;
 }
 
-.seed-title {
-    font-size: 11px;
-    opacity: 0.75;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .seed-text {
     font-size: 13px;
     display: -webkit-box;
@@ -372,9 +364,13 @@ a:visited {
     padding: 20px;
 }
 
-.passage-node.seed .title,
 .passage-node.seed header {
     display: none;
+}
+
+.passage-node.seed h1 {
+    text-align: center;
+    font-weight: normal;
 }
 
 .passage-node header {
@@ -415,11 +411,6 @@ a:visited {
 
 .passage-node .text {
     margin: 0;
-    /* display: -webkit-box; */
-    /* line-clamp: 6; */
-    /* -webkit-line-clamp: 6; */
-    /* -webkit-box-orient: vertical; */
-    /* overflow: hidden; */
     white-space: pre-line;
 }
 
@@ -451,6 +442,16 @@ a:visited {
     margin-top: 6px;
     font-size: 11px;
     color: var(--notice);
+}
+
+.toggle-description {
+    width: 3em;
+    height: 3em;
+    border: none;
+    border-radius: 1000px;
+    background-color: var(--seed);
+    color: var(--seed-text);
+    box-shadow: var(--shadow-light);
 }
 
 .actions {

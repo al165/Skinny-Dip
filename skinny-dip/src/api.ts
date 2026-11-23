@@ -139,7 +139,8 @@ export async function askQuestion(question: string, nodeId: string | null, selec
 }
 
 export const RELATIONS = ["neighbours", "counter", "evidence", "zoom-in", "zoom-out", "shared-with", "sources",
-    "arguments-here", "holder", "images"] as const;
+    "arguments-here", "holder", "images",] as const;
+
 /** The moves each kind of node offers (the API answers 400 for the others). */
 export const MOVES: Record<string, readonly PassageRelation[]> = {
     argument: ["counter", "evidence", "neighbours", "zoom-in", "zoom-out", "shared-with", "sources", "holder", "images"],
@@ -152,8 +153,8 @@ export const MOVES: Record<string, readonly PassageRelation[]> = {
 export const IMAGE_RELATIONS = ["image-passages"] as const;
 export type PassageRelation = typeof RELATIONS[number];
 /** Not API moves: "answer" links a card (or a corpus question) to its answer node,
- *  "cites" links an answer node to a source it cited. */
-export type Relation = PassageRelation | typeof IMAGE_RELATIONS[number] | "answer" | "cites";
+ *  "cites" links an answer node to a source it cited, "description" links a seed title to its description. */
+export type Relation = PassageRelation | typeof IMAGE_RELATIONS[number] | "answer" | "cites" | "description";
 
 async function getJSON<T>(path: string): Promise<T> {
     const res = await fetch(BASE + path);

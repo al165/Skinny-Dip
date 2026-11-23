@@ -1,14 +1,22 @@
-import type { XYPosition } from "@xyflow/react";
+import type { EdgeMarker, XYPosition } from "@xyflow/react";
 import type { Relation } from "./api";
 
 type RelationStyle = {
-    label: string,
+    /** Text of the edge's label; null/absent = no label. */
+    label?: string | null,
     colour: string,
     hint: string,
     /** Which side of the parent the new node goes, and which handles the edge uses. */
     sourceHandle: string,
     targetHandle: string,
     place: (parent: XYPosition, size: { w: number, h: number }, n: number) => XYPosition,
+    stroke?: string,
+    strokeWidth?: number,
+    /** SVG dash pattern for the edge line, e.g. "2 6" for dots (with a round line cap). */
+    strokeDasharray?: string,
+    /** Overrides for the arrow head at the target end (merged over the default MarkerType.Arrow, 20×20,
+     *  var(--arrow)), e.g. { type: MarkerType.ArrowClosed } or { width: 12, height: 12 }; null = no arrow head. */
+    markerProps?: Partial<EdgeMarker> | null,
 };
 
 const W = 280;      // node width (keep in sync with .passage-node in index.css)
@@ -78,6 +86,11 @@ export const RELATION_STYLE: Record<Relation, RelationStyle> = {
         label: "Cites", colour: "#1f6feb", hint: "A source the answer cited",
         sourceHandle: "s-bottom", targetHandle: "t-top",
         place: (p, s, n) => ({ x: p.x + spread(n) * (W + 40), y: p.y + s.h + GAP }),
+    },
+    "description": {
+        label: null, colour: "#3a5e48", hint: "The seed's description", strokeDasharray: "1 6",
+        sourceHandle: "s-right", targetHandle: "t-left", markerProps: null,
+        place: (p, s) => ({ x: p.x + s.w + 80, y: p.y }),
     },
     "evidence": {
         label: "Evidence", colour: "#904adb", hint: "Passages that support it",

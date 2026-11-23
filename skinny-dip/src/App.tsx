@@ -61,7 +61,7 @@ function Canvas() {
         const raw = e.dataTransfer.getData(DRAG_TYPE);
         if (!raw) return;
         e.preventDefault();
-        addSeed(JSON.parse(raw) as Item, position);
+        addSeed(JSON.parse(raw) as Item, position, true);
         setSideOpen(false);
     }, [addSeed, addNote, setSideOpen, screenToFlowPosition]);
 

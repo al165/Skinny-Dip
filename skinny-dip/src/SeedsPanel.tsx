@@ -57,17 +57,19 @@ export function SeedPanel() {
                 <div className="panel-head corpus-ask">
                     <textarea
                         className="ask-input"
-                        rows={2}
+                        rows={question.trim() ? 3 : 1}
                         placeholder="Ask a question about the corpus…"
                         value={question}
                         onChange={e => setQuestion(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
                     />
                     <div className="ask-row">
-                        <span className="count">{asking ? "Asking… (answer goes on the canvas)" : "The answer goes on the canvas"}</span>
-                        <button className="ask-send" disabled={asking || !question.trim()} onClick={send}>
-                            {asking ? "Asking…" : "Ask"}
-                        </button>
+                        <span className="count">{asking ? "Asking, please wait…" : ""}</span>
+                        {question.trim() &&
+                            <button className="ask-send" disabled={asking || !question.trim()} onClick={send}>
+                                {asking ? "Asking…" : "Ask"}
+                            </button>
+                        }
                     </div>
                 </div>
                 <div className="panel-head">

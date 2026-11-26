@@ -27,7 +27,7 @@ export function ResultsPanel() {
 
     return (
         <Panel position="center-right" className="nowheel">
-            <div id="results-panel" style={accent(style.colour)}>
+            <div id="results-panel">
                 <div className="panel-head">
                     <div className="results-title">
                         <span className="relation">{style.label}</span>

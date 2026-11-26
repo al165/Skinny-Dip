@@ -61,10 +61,17 @@ export type QuestionData = {
 };
 export type QuestionNode = Node<QuestionData, "question">;
 
-/** An LLM answer, linked from the card (or question node) it answers; its citations add sources linked from it. */
+/** draft: the question box is open; loading: asked, waiting; ready: answered; error: the ask failed (box reopens). */
+export type AnswerStatus = "draft" | "loading" | "ready" | "error";
+
+/** An LLM answer, linked from the card (or question node) it answers; its citations add sources linked from it.
+ *  It's placed as soon as Ask is clicked, as a draft holding the question box; the answer fills it in. */
 export type AnswerData = {
-    /** `${sourceId}|${selection}|${question}`: asking the same thing again selects this node. */
-    key: string,
+    status: AnswerStatus,
+    /** Why the last ask failed (status "error"). */
+    error: string | null,
+    /** DIP node id of the card asked about; null = a question about the whole corpus. */
+    about: string | null,
     question: string,
     selection: string | null,
     answer: string,

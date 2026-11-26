@@ -1,17 +1,17 @@
 // The canvas state (zustand): nodes and edges, the seeds list, cached move results, and the
-// results and Ask panels. Node and edge constructors are in build.ts.
+// results panel. Node and edge constructors are in build.ts.
 import { applyEdgeChanges, applyNodeChanges, type OnEdgesChange, type OnNodesChange, type XYPosition } from "@xyflow/react";
 import { create } from "zustand";
 
 import {
     apiUrl, askQuestion, fetchNodes,
-    type ActionResult, type Item, type QuestionResponse, type QuestionSource, type SeedKind,
+    type ActionResult, type Item, type QuestionSource, type SeedKind,
 } from "../api";
 import { flowId, imageFlowId, randomRotation, resultFlowId, seedTextId, seedTitleId, selectOnly, sizeOf } from "../lib/canvas";
 import { NODE_WIDTH, RELATION_STYLE } from "../relations";
 import {
     isAnswer, isImage, isNote, isPassage,
-    type AnswerNode, type NodeType, type NoteData, type PassageData, type QuestionNode, type Relation, type RelationEdge,
+    type AnswerData, type AnswerNode, type NodeType, type NoteData, type PassageData, type QuestionNode, type Relation, type RelationEdge,
 } from "../types";
 import { fetchAction, imageNode, makeEdge, noteNode, passageNode, toPassageData } from "./build";
 
@@ -25,19 +25,6 @@ export type Picker = {
     key: string,
     status: Status,
     notice: string | null,
-};
-
-/** The Ask panel: a question about a card (or, with no card, about the whole corpus). */
-export type Ask = {
-    /** Flow id of the card asked about; null = the whole corpus. */
-    sourceId: string | null,
-    /** Text selected in the card, if any: steers retrieval and is shown in the panel. */
-    selection: string | null,
-    status: Status,
-    response: QuestionResponse | null,
-    /** Flow id of the answer node the last response became. */
-    answerId: string | null,
-    error: string | null,
 };
 
 type Store = {
@@ -79,17 +66,17 @@ type Store = {
     sideOpen: boolean,
     setSideOpen: (open: boolean) => void,
 
-    ask: Ask | null,
-    /** Ask about the whole corpus (from the seeds panel): opens the Ask panel for its status and sources. */
+    /** Ask about the whole corpus (from the seeds panel): places a question node at `at` with its answer
+     *  node below, already asking. */
     askCorpus: (question: string, at: XYPosition) => Promise<void>,
-    /** Open the Ask panel about a card (flow id) and a selection in it; null = the whole corpus. */
-    openAsk: (sourceId: string | null, selection?: string | null) => void,
-    /** Ask, then put the answer on the canvas as an answer node: linked from the card asked about, or,
-     *  for a corpus question, from a new question node placed at `at`. */
-    submitQuestion: (question: string, at: XYPosition) => Promise<void>,
+    /** Place a draft answer node (an open question box) linked from a card (flow id), about a selection
+     *  in it if given. An unasked draft for the same card and selection is selected instead. */
+    openAsk: (sourceId: string, selection?: string | null) => void,
+    /** Ask a draft (or failed) answer node's question; the answer fills that node in. */
+    submitQuestion: (answerId: string, question: string) => Promise<void>,
+    updateAnswer: (answerId: string, data: Partial<AnswerData>) => void,
     /** Add a source an answer drew on to the canvas, linked from that answer node by a Cites edge. */
     addCited: (answerId: string, result: QuestionSource) => void,
-    closeAsk: () => void,
 
     removeNode: (flowId: string) => void,
     clear: () => void,
@@ -154,47 +141,14 @@ export const useGraph = create<Store>((set, get) => {
         });
     };
 
-    /** Put an answer on the canvas, linked from the card asked about or, with no card, from a new question
-     *  node at `at`. Returns the answer's flow id (an existing one if the same question was asked before). */
-    const placeAnswer = (sourceId: string | null, selection: string | null, r: QuestionResponse, at: XYPosition): string | null => {
-        const key = `${sourceId ?? "corpus"}|${selection ?? ""}|${r.question}`;
-        const { nodes, edges } = get();
-        const existing = nodes.find(n => isAnswer(n) && n.data.key === key);
-        if (existing) {
-            set({ nodes: selectOnly(nodes, existing.id) });
-            return existing.id;
-        }
-        const card = sourceId ? nodes.find(n => n.id === sourceId) : undefined;
-        if (sourceId && !card) return null;  // the card was removed while the question was out
+    const patchAnswer = (id: string, data: Partial<AnswerData>) =>
+        set({ nodes: get().nodes.map((n): NodeType => n.id === id && isAnswer(n) ? { ...n, data: { ...n.data, ...data } } : n) });
 
-        const answerId = `answer-${crypto.randomUUID()}`;
-        const answer: AnswerNode = {
-            id: answerId, type: "answer", position: { x: 0, y: 0 }, selected: true,
-            data: {
-                key, question: r.question, selection, answer: r.answer, found: r.found,
-                sources: r.sources, model: r.meta.model, rotation: randomRotation(),
-            },
-        };
-        const newNodes = selectOnly(nodes);
-        const why = { why: r.question, score: 1 };
-        let edge: RelationEdge;
-        if (card) {
-            const n = nodes.filter(m => isAnswer(m) && edges.some(e => e.source === card.id && e.target === m.id)).length;
-            answer.position = RELATION_STYLE.answer.place(card.position, sizeOf(card), n);
-            edge = makeEdge(card.id, answerId, "answer", why);
-        } else {
-            const question: QuestionNode = {
-                id: `question-${crypto.randomUUID()}`, type: "question", selected: false,
-                position: { x: at.x - NODE_WIDTH / 2, y: at.y - 60 },
-                data: { question: r.question, rotation: randomRotation() },
-            };
-            newNodes.push(question);
-            answer.position = { x: question.position.x, y: question.position.y + 240 };
-            edge = { ...makeEdge(question.id, answerId, "answer", why), sourceHandle: "s-bottom", targetHandle: "t-top" };
-        }
-        set({ nodes: [...newNodes, answer], edges: [...edges, edge] });
-        return answerId;
-    };
+    /** An answer node with nothing answered yet. */
+    const newAnswer = (position: XYPosition, data: Pick<AnswerData, "status" | "about" | "question" | "selection">): AnswerNode => ({
+        id: `answer-${crypto.randomUUID()}`, type: "answer", position, selected: true,
+        data: { ...data, error: null, answer: "", found: true, sources: [], model: "", rotation: randomRotation() },
+    });
 
     return {
         nodes: [],
@@ -277,8 +231,7 @@ export const useGraph = create<Store>((set, get) => {
             // Results are a property of the DIP node, so passages key the cache by dipId: a seed's title and
             // description cards (two flow ids, one DIP node) share it. Images key it by flow id (one per slug).
             const key = `${isPassage(source) ? source.data.dipId : sourceId}:${relation}`;
-            // One panel at a time.
-            set({ ask: null, picker: { sourceId, relation, key, status: "ready", notice: null } });
+            set({ picker: { sourceId, relation, key, status: "ready", notice: null } });
 
             const cached = get().results[key];
             if (cached) {
@@ -330,51 +283,65 @@ export const useGraph = create<Store>((set, get) => {
         sideOpen: true,
         setSideOpen: (sideOpen) => set({ sideOpen }),
 
-        ask: null,
-
         askCorpus: async (question, at) => {
-            get().openAsk(null);
-            await get().submitQuestion(question, at);
+            question = question.trim();
+            if (!question) return;
+            const root: QuestionNode = {
+                id: `question-${crypto.randomUUID()}`, type: "question", selected: false,
+                position: { x: at.x - NODE_WIDTH / 2, y: at.y - 60 },
+                data: { question, rotation: randomRotation() },
+            };
+            const answer = newAnswer({ x: root.position.x, y: root.position.y + 240 },
+                { status: "draft", about: null, question, selection: null });
+            const edge = { ...makeEdge(root.id, answer.id, "answer", { why: question, score: 1 }), sourceHandle: "s-bottom", targetHandle: "t-top" };
+            set({ nodes: [...selectOnly(get().nodes), root, answer], edges: [...get().edges, edge] });
+            await get().submitQuestion(answer.id, question);
         },
 
         openAsk: (sourceId, selection = null) => {
-            const cur = get().ask;
-            // Reopening on the same card and selection keeps the last answer.
-            if (cur && cur.sourceId === sourceId && cur.selection === selection) {
-                set({ picker: null });
+            const { nodes, edges } = get();
+            const card = nodes.find(n => n.id === sourceId);
+            if (!card || !isPassage(card)) return;
+            selection = selection?.trim() || null;
+            const answers = nodes.filter((m): m is AnswerNode => isAnswer(m) && edges.some(e => e.source === card.id && e.target === m.id));
+
+            // Clicking Ask again while a draft for the same thing is still open just goes back to it.
+            const draft = answers.find(a => a.data.status === "draft" && a.data.selection === selection);
+            if (draft) {
+                set({ nodes: selectOnly(nodes, draft.id) });
                 return;
             }
-            set({ picker: null, ask: { sourceId, selection: selection?.trim() || null, status: "idle", response: null, answerId: null, error: null } });
+            const answer = newAnswer(RELATION_STYLE.answer.place(card.position, sizeOf(card), answers.length),
+                { status: "draft", about: card.data.dipId, question: "", selection });
+            set({
+                nodes: [...selectOnly(nodes), answer],
+                edges: [...edges, makeEdge(card.id, answer.id, "answer", { why: selection ?? "Ask", score: 1 })],
+            });
         },
 
-        submitQuestion: async (question, at) => {
-            const ask = get().ask;
+        submitQuestion: async (answerId, question) => {
+            const node = get().nodes.find(n => n.id === answerId);
             question = question.trim();
-            if (!ask || ask.status === "loading" || !question) return;
-            const source = ask.sourceId ? get().nodes.find(n => n.id === ask.sourceId) : undefined;
-            const nodeId = source && isPassage(source) ? source.data.dipId : null;
-            // Only update the panel if it still shows this question's card and selection.
-            const patchAsk = (p: Partial<Ask>) => {
-                const cur = get().ask;
-                if (cur?.sourceId === ask.sourceId && cur.selection === ask.selection) set({ ask: { ...cur, ...p } });
-            };
-            set({ ask: { ...ask, status: "loading", error: null }, sideOpen: false });
+            if (!node || !isAnswer(node) || node.data.status === "loading" || node.data.status === "ready" || !question) return;
+            patchAnswer(answerId, { status: "loading", question, error: null });
+            set({ sideOpen: false });
             try {
-                const response = await askQuestion(question, nodeId, ask.selection);
-                const answerId = placeAnswer(ask.sourceId, ask.selection, response, at);
-                patchAsk({ status: "ready", response, answerId });
+                const r = await askQuestion(question, node.data.about, node.data.selection);
+                // patchAnswer is a no-op if the node was removed while the question was out.
+                patchAnswer(answerId, { status: "ready", answer: r.answer, found: r.found, sources: r.sources, model: r.meta.model });
+                set({ edges: get().edges.map(e => e.target === answerId && e.data?.relation === "answer" ? { ...e, data: { ...e.data, why: question } } : e) });
             } catch (e) {
-                patchAsk({ status: "error", error: errorText(e) });
+                patchAnswer(answerId, { status: "error", error: errorText(e) });
             }
         },
+
+        updateAnswer: patchAnswer,
 
         addCited: (answerId, result) =>
             link(answerId, "cites", { ...result, why: `${result.why} · cited as [${result.label}]` }),
 
-        closeAsk: () => set({ ask: null }),
-
         removeNode: (id) => {
-            const { nodes, edges, chosen, picker, ask } = get();
+            const { nodes, edges, chosen, picker } = get();
             set({
                 nodes: nodes.filter(n => n.id !== id),
                 edges: edges.filter(e => e.source !== id && e.target !== id),
@@ -382,10 +349,9 @@ export const useGraph = create<Store>((set, get) => {
                     .filter(([k]) => !k.startsWith(`${id}:`))
                     .map(([k, v]) => [k, v.filter(t => t !== id)])),
                 picker: picker?.sourceId === id ? null : picker,
-                ask: ask?.sourceId === id ? null : ask?.answerId === id ? { ...ask, answerId: null } : ask,
             });
         },
 
-        clear: () => set({ nodes: [], edges: [], chosen: {}, picker: null, ask: null }),
+        clear: () => set({ nodes: [], edges: [], chosen: {}, picker: null }),
     };
 });

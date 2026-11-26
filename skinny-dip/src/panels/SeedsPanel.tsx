@@ -37,12 +37,11 @@ export function SeedsPanel() {
 
 function CorpusQuestion() {
     const askCorpus = useGraph(s => s.askCorpus);
-    const asking = useGraph(s => s.ask?.sourceId === null && s.ask.status === "loading");
     const questionSpot = useQuestionSpot();
     const [question, setQuestion] = useState("");
 
     const send = () => {
-        if (!question.trim() || asking) return;
+        if (!question.trim()) return;
         askCorpus(question, questionSpot());
         setQuestion("");
     };
@@ -57,11 +56,11 @@ function CorpusQuestion() {
                 onChange={e => setQuestion(e.target.value)}
                 onKeyDown={sendOnEnter(send)}
             />
-            <div className="ask-row">
-                <span className="count">{asking ? "Asking, please wait…" : ""}</span>
-                {question.trim() &&
-                    <button className="ask-send" disabled={asking} onClick={send}>{asking ? "Asking…" : "Ask"}</button>}
-            </div>
+            {question.trim() &&
+                <div className="ask-row">
+                    <span className="count" />
+                    <button className="ask-send" onClick={send}>Ask</button>
+                </div>}
         </div>
     );
 }

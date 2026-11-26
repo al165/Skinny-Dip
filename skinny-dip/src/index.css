@@ -229,7 +229,6 @@ a:visited {
     flex-direction: column;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-top: 4px solid var(--c);
     box-shadow: var(--shadow);
     overflow: hidden;
 }
@@ -284,7 +283,6 @@ a:visited {
     background: var(--surface-2);
     color: var(--text);
     border: 1px solid var(--border);
-    border-left: 4px solid var(--c);
 }
 
 .result:hover {
@@ -837,11 +835,6 @@ a:visited {
 
 /* ── Ask: questions to the LLM about a card, a selection in it, or the corpus ─────────── */
 
-.ask-panel {
-    width: 380px;
-    max-height: 80vh;
-}
-
 .ask-selection {
     margin: 0;
     padding: 4px 8px;
@@ -881,41 +874,6 @@ a:visited {
     cursor: default;
 }
 
-.ask-answer {
-    padding: 8px 10px;
-    border: 1px solid var(--seed);
-    background: var(--surface);
-    font-size: 13px;
-}
-
-.ask-answer p {
-    margin: 4px 0;
-    color: var(--text-h);
-}
-
-.ask-answer .notice {
-    font-size: 11px;
-    color: var(--notice);
-}
-
-.ask-answer-foot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-    font-size: 11px;
-    color: var(--muted);
-}
-
-.ask-answer-foot button {
-    padding: 2px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface-2);
-    color: var(--text);
-}
-
 /* a citation chip in the answer: adds that source to the canvas */
 .cite {
     display: inline-block;
@@ -934,11 +892,6 @@ a:visited {
     color: #fff;
 }
 
-.result.uncited {
-    opacity: 0.6;
-    border-left-color: var(--border);
-}
-
 .ask-selection-button {
     padding: 6px 12px;
     border-radius: 10px;
@@ -954,12 +907,31 @@ a:visited {
 
 /* an answer node: an LLM answer, linked from the card or corpus question it answers */
 .passage-node.kind-answer {
-    border: 1px solid var(--c);
-    border-top-width: 4px;
+    border-radius: 20px;
 }
 
 .passage-node.kind-answer .ask-selection {
     margin: 4px 0 6px;
+}
+
+/* the question box of an answer node that hasn't been asked yet (or failed) */
+.passage-node.kind-answer .ask-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0;
+}
+
+.passage-node.kind-answer .ask-input {
+    width: 100%;
+    box-sizing: border-box;
+    resize: none;
+}
+
+.passage-node.kind-answer .ask-status {
+    margin: 6px 0 2px;
+    font-size: 12px;
+    color: var(--muted);
 }
 
 .passage-node .cited-source {

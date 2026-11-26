@@ -86,8 +86,8 @@ export const RELATION_STYLE: Record<Relation, RelationStyle> = {
     "answer": {
         label: "Answer", colour: "#1f6feb", hint: "Ask the LLM a question about this card",
         sourceHandle: "s-left", targetHandle: "t-right",
-        // up and to the left, two columns (Counter takes the left, Zoom out the top)
-        place: (p, _s, n) => ({ x: p.x - (W + 40) * (1 + (n % 2)) - GAP + 40, y: p.y - 320 - Math.floor(n / 2) * 240 }),
+        // to the left, fanning out up and down (shares the left with Counter)
+        place: (p, _s, n) => ({ x: p.x + W + GAP, y: p.y + spread(n) * 260 }),
     },
     "cites": {
         label: "Cites", colour: "#1f6feb", hint: "A source the answer cited",

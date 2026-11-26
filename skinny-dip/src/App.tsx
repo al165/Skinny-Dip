@@ -9,7 +9,6 @@ import { ImageNode } from "./nodes/ImageNode";
 import { NoteNode } from "./nodes/NoteNode";
 import { PassageNode } from "./nodes/PassageNode";
 import { QuestionNode } from "./nodes/QuestionNode";
-import { AskPanel } from "./panels/AskPanel";
 import { ResultsPanel } from "./panels/ResultsPanel";
 import { SEED_DRAG_TYPE, SeedsPanel } from "./panels/SeedsPanel";
 import { useGraph } from "./store/graphs";
@@ -79,7 +78,6 @@ function Canvas() {
             <MiniMap pannable zoomable />
             <SeedsPanel />
             <ResultsPanel />
-            <AskPanel />
             <Panel id="canvas-buttons" position="top-right">
                 {nodes.length > 0 && <button className="clear" onClick={clear} title="Clear the canvas">clear</button>}
                 <button className="note" draggable onDragStart={onDragNoteStart} title="Drag to add a text note">+ note</button>

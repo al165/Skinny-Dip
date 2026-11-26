@@ -88,3 +88,25 @@ export function getEdgeParams(source: InternalNode<Node>, target: InternalNode<N
         targetPos,
     };
 }
+
+export function customBezierEdge({
+    sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
+}: { sourceX: number, sourceY: number, targetX: number, targetY: number, sourcePosition: Position, targetPosition: Position }): [string, number, number] {
+    const offset = (pos: Position, d: number) =>
+        pos === Position.Left ? { x: -d, y: 0 } : pos === Position.Right ? { x: d, y: 0 }
+            : pos === Position.Top ? { x: 0, y: -d } : { x: 0, y: d };
+
+    const dx = targetX - sourceX;
+    const dy = targetY - sourceY;
+    const lenSq = dx * dx + dy * dy;
+    const diagonal = lenSq > 0 ? (2 * Math.abs(dx * dy)) / lenSq : 0;
+
+    const curvature = 1.1 * diagonal;
+    const d = Math.hypot(targetX - sourceX, targetY - sourceY) * curvature;
+    const c1 = offset(sourcePosition, d), c2 = offset(targetPosition, d);
+    const path = `M${sourceX},${sourceY} C${sourceX + c1.x},${sourceY + c1.y} ${targetX + c2.x},${targetY + c2.y} ${targetX},${targetY}`;
+    const labelX = (sourceX + targetX) / 2;
+    const labelY = (sourceY + targetY) / 2;
+
+    return [path, labelX, labelY];
+}

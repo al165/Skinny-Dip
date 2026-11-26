@@ -50,7 +50,7 @@ type Store = {
     seeds: Item[],
     seedsStatus: Status,
     seedsError: string | null,
-    loadSeeds: (kind?: SeedKind) => Promise<void>,
+    loadSeeds: (kind?: SeedKind, shuffled?: boolean) => Promise<void>,
 
     /** Move results per `${dipId}:${relation}` (images: `${flowId}:${relation}`), cached so reopening the same
      *  move doesn't refetch. */
@@ -206,11 +206,18 @@ export const useGraph = create<Store>((set, get) => {
         seeds: [],
         seedsStatus: "idle",
         seedsError: null,
-        loadSeeds: async (kind = get().seedKind) => {
+        loadSeeds: async (kind = get().seedKind, shuffled = true) => {
             if (get().seedsStatus === "loading") return;
             set({ seedKind: kind, seedsStatus: "loading", seedsError: null });
             try {
-                set({ seeds: await fetchNodes(kind), seedsStatus: "ready" });
+                let seeds = await fetchNodes(kind);
+                if (shuffled) {
+                    for (let i = seeds.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
+                    }
+                }
+                set({ seeds, seedsStatus: "ready" });
             } catch (e) {
                 console.error(e);
                 set({ seedsStatus: "error", seedsError: errorText(e) });

@@ -68,9 +68,15 @@ export function makeEdge(source: string, target: string, relation: Relation, r: 
         type: "relation",
         data: { relation, why: r.why, score: r.score },
         markerEnd: style.markerProps === null ? undefined
-            : { type: MarkerType.Arrow, color: "var(--arrow)", height: 20, width: 20, ...style.markerProps },
+            : {
+                type: MarkerType.Arrow,
+                color: "var(--arrow)",
+                height: 20,
+                width: 20,
+                ...style.markerProps,
+            },
         style: {
-            stroke: style.stroke ?? "var(--arrow)",
+            stroke: "var(--arrow)",
             strokeWidth: style.strokeWidth ?? 2,
             ...(style.strokeDasharray && { strokeDasharray: style.strokeDasharray, strokeLinecap: "round" as const }),
         },

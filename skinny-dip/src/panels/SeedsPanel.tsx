@@ -90,7 +90,7 @@ function SeedList() {
             <div className="panel-head">
                 <div className="tabs">
                     {KINDS.map(([k, label]) => (
-                        <button key={k} className={k === kind ? "active" : ""} onClick={() => loadSeeds(k)}>{label}</button>
+                        <button key={k} className={k === kind ? "active" : ""} onClick={() => loadSeeds(k, true)}>{label}</button>
                     ))}
                 </div>
                 <input type="search" placeholder="Filter…" value={query} onChange={e => setQuery(e.target.value)} />

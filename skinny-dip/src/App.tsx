@@ -3,7 +3,6 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, type DragEvent } from "react";
 
 import type { Item } from "./api";
-import { FloatingConnectionLine } from "./edges/FloatingConnectionLine";
 import { RelationEdge } from "./edges/RelationEdge";
 import { AnswerNode } from "./nodes/AnswerNode";
 import { ImageNode } from "./nodes/ImageNode";
@@ -72,7 +71,6 @@ function Canvas() {
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodesConnectable={false}
-            connectionLineComponent={FloatingConnectionLine}
             colorMode="system"
             minZoom={0.5}
             maxZoom={5}

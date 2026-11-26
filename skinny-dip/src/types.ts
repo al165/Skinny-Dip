@@ -46,6 +46,11 @@ export type PassageNode = Node<PassageData, "passage">;
 export type NoteData = {
     colour: string,
     text: string,
+    /** Text size in px; absent on notes made before sizes existed (falls back to NOTE_DEFAULT_SIZE). */
+    fontSize?: number,
+    /** Whole-note styles (a textarea can't style a selection); absent = off. */
+    bold?: boolean,
+    italic?: boolean,
 };
 export type NoteNode = Node<NoteData, "note">;
 

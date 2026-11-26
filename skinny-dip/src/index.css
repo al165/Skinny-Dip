@@ -614,6 +614,7 @@ a:visited {
 }
 
 .note-toolbar .swatch {
+    display: block;
     width: 18px;
     height: 18px;
     padding: 0;
@@ -621,9 +622,84 @@ a:visited {
     border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
+.note-toolbar .colour-menu {
+    position: relative;
+}
+
+.note-toolbar .colour-toggle {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 2px 0 0;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.note-toolbar .colour-toggle .caret {
+    font-size: 10px;
+    line-height: 1;
+}
+
+.note-toolbar .colour-options {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: -4px;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: repeat(3, 18px);
+    gap: 6px;
+    padding: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-light);
+}
+
 .note-toolbar .swatch.active {
     outline: 2px solid var(--text-h);
     outline-offset: 1px;
+}
+
+.note-toolbar .size {
+    height: 20px;
+    padding: 0 4px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-h);
+    font: 12px var(--sans);
+    cursor: pointer;
+}
+
+.note-toolbar .style-toggle {
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    background: none;
+    color: var(--muted);
+    font: 13px/1 var(--sans);
+    cursor: pointer;
+}
+
+.note-toolbar .style-toggle.bold {
+    font-weight: 700;
+}
+
+.note-toolbar .style-toggle.italic {
+    font-style: italic;
+    font-family: Georgia, serif;
+}
+
+.note-toolbar .style-toggle:hover {
+    color: var(--text-h);
+}
+
+.note-toolbar .style-toggle.active {
+    color: var(--text-h);
 }
 
 .note-toolbar .remove {

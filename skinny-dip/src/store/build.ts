@@ -10,6 +10,8 @@ import {
 } from "../types";
 
 export const NOTE_COLOURS = ["#4D4034", "#B56936", "#614956", "#254369", "#508C65", "#716994"];
+export const NOTE_FONT_SIZES = [12, 14, 18, 24, 32, 48];
+export const NOTE_DEFAULT_SIZE = 14;
 const NOTE_SIZE = { width: 200, height: 70 };
 const IMAGE_WIDTH = 200;
 
@@ -52,7 +54,7 @@ export const noteNode = (at: XYPosition): NoteNode => ({
     id: `note-${crypto.randomUUID()}`, type: "note",
     position: { x: at.x - NOTE_SIZE.width / 2, y: at.y - NOTE_SIZE.height / 2 },
     ...NOTE_SIZE,
-    data: { colour: NOTE_COLOURS[0], text: "" }, selected: true,
+    data: { colour: NOTE_COLOURS[0], text: "", fontSize: NOTE_DEFAULT_SIZE }, selected: true,
 });
 
 /** An edge styled by its relation (see RELATION_STYLE). */

@@ -67,6 +67,8 @@ type Store = {
     toggleSeedText: (titleId: string) => void,
     addNote: (position: XYPosition) => void,
     updateNote: (flowId: string, data: Partial<NoteData>) => void,
+    /** Raise a note's height to `height` px if it is shorter; never shrinks it. */
+    growNote: (flowId: string, height: number) => void,
     /** Run a move on a node and open the results panel; nothing is added until `choose`. */
     expand: (flowId: string, relation: Relation) => Promise<void>,
     /** Add the chosen result to the canvas, linked to the picker's source node, and close the panel. */
@@ -254,6 +256,11 @@ export const useGraph = create<Store>((set, get) => {
         addNote: (position) => set({ nodes: [...selectOnly(get().nodes), noteNode(position)] }),
 
         updateNote: patchNote,
+        growNote: (id, height) => {
+            const note = get().nodes.find(n => n.id === id);
+            if (!note || !isNote(note) || (note.height ?? 0) >= height) return;
+            set({ nodes: get().nodes.map((n): NodeType => n.id === id ? { ...n, height } : n) });
+        },
 
         expand: async (sourceId, relation) => {
             const source = get().nodes.find(n => n.id === sourceId);

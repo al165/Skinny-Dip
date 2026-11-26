@@ -471,10 +471,11 @@ QUESTION_PROMPT = """You answer a reader's question about a corpus of documents,
 
 Rules:
 - Back every statement with the label of the material it comes from, in square brackets: [A2], or [A2][P4] for several.
-- The material records who holds each view. Always say who holds a view ("Gebru argues...", "the author of X rejects..."); never state a view as fact. Where holders disagree, say so.
+- Each argument says who holds it ("Held by ..."). For every view you report, name that holder exactly as written on that argument, and never a holder from a different item; never state a view as fact. If the holder is "unspecified", say the source does not name one. Where holders disagree, say so.
 - Quote source text word for word, in quotation marks, and only from [P...] passages.
 - Use no outside knowledge. If the material does not answer the question, say so briefly and set found to false.
 - Answer in 2-6 sentences of plain prose.
+- The answer is read as it is, by the reader: write only the answer itself. Do not restate the question, describe the material, plan, or explain how you checked it; no notes about the found field.
 {focus}
 ISSUES AND THEMES (questions the corpus debates, with a summary of the debate):
 {issues}
@@ -485,7 +486,48 @@ ARGUMENTS (views, each with who holds it):
 PASSAGES (verbatim source text):
 {passages}
 
-QUESTION: {question}"""
+QUESTION: {question}{retry}"""
+
+# qwen3 sometimes writes its reasoning into the answer field ("The reader is asking about... Let me go
+# through the material..."), occasionally for thousands of words. Answers are capped, checked for that
+# (and for a bare "No"), and asked once more with RETRY_NOTE if they fail; the retry is a different
+# prompt, so it's cached apart. (qwen3's "/no_think" switch was tried: it made the 4B model reply "No".)
+QUESTION_MAX_TOKENS = 700  # 2-6 cited sentences fit easily
+QUESTION_MAX_CHARS = 2000
+QUESTION_MIN_CHARS = 30
+RETRY_NOTE = ("\n\nIMPORTANT: a previous answer to this described its reasoning instead of answering. "
+              "Reply with the final answer only: 2-6 sentences addressed to the reader.")
+REASONING = re.compile(
+    r"^\W*(the (reader|user|question)\b[^.]{0,40}\b(ask|want|look)|i (need|will|'ll|should|must)\b|let me\b|"
+    r"let's\b|okay\b|ok\b|alright\b|first,|hmm|wait\b|so,)"
+    r"|\b(set|setting) (the )?found\b|\bfound (should|must) be\b|\banswer should be set\b",
+    re.I)
+
+
+FOUND_NOTE = re.compile(r"\s*\bfound\s*[:=]\s*(true|false)\b\.?\s*$", re.I)  # "… Found: false." echoed into the text
+
+
+def _looks_like_reasoning(answer: str) -> bool:
+    """True for an answer to ask again: the model's reasoning, too long, or too short to say anything."""
+    n = len(answer.strip())
+    return n > QUESTION_MAX_CHARS or n < QUESTION_MIN_CHARS or bool(REASONING.search(answer))
+
+
+def _ask_answer(conn, ask, prompt_for) -> tuple[dict, float, bool]:
+    """Ask the question; if the answer runs over the cap or reads like the model's reasoning, ask
+    once more with RETRY_NOTE. A second failure is returned as it is (or raises, at the cap)."""
+    try:
+        out, secs, cached = ask(conn, "question", prompt_for(""), ANSWER_SCHEMA,
+                                temperature=0.2, max_tokens=QUESTION_MAX_TOKENS)
+        if not _looks_like_reasoning(out["answer"]):
+            return out, secs, cached
+    except llm.LLMError as e:
+        if "token cap" not in str(e):
+            raise
+        secs = 0.0
+    out, secs2, cached2 = ask(conn, "question", prompt_for(RETRY_NOTE), ANSWER_SCHEMA,
+                              temperature=0.2, max_tokens=QUESTION_MAX_TOKENS)
+    return out, secs + secs2, cached2
 
 ANSWER_SCHEMA = {"type": "object", "properties": {"answer": {"type": "string"}, "found": {"type": "boolean"}},
                  "required": ["answer", "found"]}
@@ -646,12 +688,11 @@ def answer_question(conn, question: str, node_id: str | None, selection: str | N
         except NotFound:
             continue
 
-    prompt = QUESTION_PROMPT.format(focus=focus, issues=mat.lines("issue", "theme"),
-                                    arguments=mat.lines("argument", "holder"), passages=mat.lines("passage"),
-                                    question=question)
-    out, secs, cached = ask(conn, "question", prompt, ANSWER_SCHEMA, temperature=0.2)
+    material = dict(focus=focus, issues=mat.lines("issue", "theme"),
+                    arguments=mat.lines("argument", "holder"), passages=mat.lines("passage"), question=question)
+    out, secs, cached = _ask_answer(conn, ask, lambda retry: QUESTION_PROMPT.format(**material, retry=retry))
     labels = {m["label"]: nid for nid, m in mat.by_id.items()}
-    answer, cited = _clean_citations(out["answer"], labels)
+    answer, cited = _clean_citations(FOUND_NOTE.sub("", out["answer"]).strip(), labels)
     cited_ids = [labels[c] for c in cited]
     sources = []
     for nid, m in mat.by_id.items():

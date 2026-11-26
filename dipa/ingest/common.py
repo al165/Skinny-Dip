@@ -17,11 +17,13 @@ def log(msg: str):
 
 
 def ask(conn, task: str, prompt: str, schema: dict, system: str | None = None,
-        temperature: float = 0.1) -> tuple[dict, float, bool]:
-    """LLM call with a JSON schema, cached by (task, prompt, system, schema, model).
-    Returns (answer, seconds, cached)."""
+        temperature: float = 0.1, max_tokens: int | None = None) -> tuple[dict, float, bool]:
+    """LLM call with a JSON schema, cached by (task, prompt, system, schema, model, and max_tokens
+    if given). `max_tokens` lowers the output cap. Returns (answer, seconds, cached)."""
     model = config.LLM_MODEL
     payload = {"prompt": prompt, "system": system, "schema": schema, "temperature": temperature}
+    if max_tokens:  # only when set, so existing cache keys stay valid
+        payload["max_tokens"] = max_tokens
     with _db_lock:
         h, hit = db.cache_get(conn, task, payload, model)
     if hit is not None:
@@ -30,7 +32,7 @@ def ask(conn, task: str, prompt: str, schema: dict, system: str | None = None,
         return hit, 0.0, True
     t0 = time.time()
     try:
-        out = llm.generate(prompt, schema=schema, system=system, temperature=temperature)
+        out = llm.generate(prompt, schema=schema, system=system, temperature=temperature, max_tokens=max_tokens)
     except llm.LLMError as e:
         # an answer that overflows the output cap is cached too, so reruns go straight to the
         # caller's fallback (s3 splits the window) instead of re-asking, and stay deterministic

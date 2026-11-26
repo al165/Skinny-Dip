@@ -48,10 +48,11 @@ def available() -> dict:
 
 def generate(prompt: str, schema: dict | None = None, system: str | None = None,
              temperature: float = 0.2, images: list[bytes] | None = None, model: str | None = None,
-             logprobs: bool = False):
+             logprobs: bool = False, max_tokens: int | None = None):
     """Chat completion. With `schema`, Ollama constrains output to that JSON schema and the
     parsed object is returned; otherwise the text is returned. With `logprobs=True` returns
-    (result, token_logprobs) so callers can read the model's confidence (see expected_score)."""
+    (result, token_logprobs) so callers can read the model's confidence (see expected_score).
+    `max_tokens` lowers the output cap for this call (default config.LLM_MAX_TOKENS)."""
     _check_online()
     messages = []
     if system:
@@ -60,13 +61,14 @@ def generate(prompt: str, schema: dict | None = None, system: str | None = None,
     if images:
         msg["images"] = [base64.b64encode(b).decode() for b in images]
     messages.append(msg)
+    cap = max_tokens or config.LLM_MAX_TOKENS
     body = {
         "model": model or config.LLM_MODEL,
         "messages": messages,
         "stream": False,
         "think": False,  # qwen3 & co: skip the hidden reasoning trace, much faster
         "options": {"temperature": temperature, "num_ctx": config.LLM_NUM_CTX,
-                    "num_predict": config.LLM_MAX_TOKENS},
+                    "num_predict": cap},
     }
     # Free text also goes through JSON mode: some Ollama versions ignore think=False for qwen3
     # and the model then writes its reasoning straight into the answer, untagged. A JSON
@@ -86,7 +88,8 @@ def generate(prompt: str, schema: dict | None = None, system: str | None = None,
         result = json.loads(content)
     except json.JSONDecodeError as e:
         if data.get("done_reason") == "length":
-            raise LLMError(f"Model hit the {config.LLM_MAX_TOKENS}-token cap (DIP_LLM_MAX_TOKENS) "
+            raise LLMError(f"Model hit the {cap}-token cap "
+                           f"{'(DIP_LLM_MAX_TOKENS) ' if cap == config.LLM_MAX_TOKENS else ''}"
                            f"before finishing its answer") from e
         raise LLMError(f"Model returned invalid JSON: {content[:200]}") from e
     if not schema:
